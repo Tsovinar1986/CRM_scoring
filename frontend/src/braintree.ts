@@ -1,5 +1,5 @@
 // Just the slice of Braintree's Drop-in UI
-// (https://developer.paypal.com/braintree/docs/guides/drop-in/overview/javascript/v3/)
+// (https://developer.braintreepayments.com/guides/drop-in/overview/javascript/v3)
 // this app uses: the hosted card form, tokenized into a one-time nonce.
 export interface DropinPaymentMethod {
   nonce: string;
