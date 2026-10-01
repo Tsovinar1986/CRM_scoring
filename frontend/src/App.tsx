@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
-import { TenantAuthError, clearTenantApiKey, fetchLeads, getTenantApiKey, setTenantApiKey } from "./api";
+import {
+  TenantAuthError,
+  clearTenantApiKey,
+  fetchLeads,
+  fetchLicenseStatus,
+  getTenantApiKey,
+  setTenantApiKey,
+} from "./api";
+import { GettingStarted } from "./components/GettingStarted";
 import { LeadDetail } from "./components/LeadDetail";
 import { LeadsTable } from "./components/LeadsTable";
 import { LicenseBanner } from "./components/LicenseBanner";
 import { ScoreDashboard } from "./components/ScoreDashboard";
 import { TenantSwitcher } from "./components/TenantSwitcher";
 import { UploadPanel } from "./components/UploadPanel";
+import { AuthPage } from "./pages/AuthPage";
 import { PurchaseComplete } from "./pages/PurchaseComplete";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import type { ScoredLead } from "./types";
@@ -28,6 +37,19 @@ function LeadScoringApp() {
   const [bucketFilter, setBucketFilter] = useState<"all" | "hot" | "warm" | "cold">("all");
   const [workspaceGeneration, setWorkspaceGeneration] = useState(0);
   const [authError, setAuthError] = useState<string | null>(null);
+  // Hosted deployment with no workspace yet -> the sign-in page instead of
+  // the app. null while that's still being checked.
+  const [needsAuth, setNeedsAuth] = useState<boolean | null>(getTenantApiKey() ? false : null);
+
+  useEffect(() => {
+    if (getTenantApiKey()) {
+      setNeedsAuth(false);
+      return;
+    }
+    fetchLicenseStatus()
+      .then((status) => setNeedsAuth(Boolean(status.hosted)))
+      .catch(() => setNeedsAuth(false));
+  }, [workspaceGeneration]);
 
   useEffect(() => {
     fetchLeads()
@@ -59,6 +81,16 @@ function LeadScoringApp() {
 
   const selectedLead = leads.find((l) => l.id === selectedId) ?? null;
 
+  if (needsAuth === null) return null;
+  if (needsAuth) {
+    return (
+      <>
+        {authError && <p className="bg-hot-soft px-4 py-2 text-center text-sm text-hot">{authError}</p>}
+        <AuthPage onSignedIn={handleWorkspaceChange} />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-bg font-sans text-text antialiased">
       <div className="mx-auto max-w-[1200px] px-6 py-8">
@@ -87,12 +119,20 @@ function LeadScoringApp() {
 
         {/* Decides for itself whether to show (see LicenseBanner). Keyed on
             the workspace so it re-reads status after connect/disconnect. */}
-        <div className="animate-fade-in-up mb-5 empty:hidden" style={{ animationDelay: "60ms" }}>
+        <div id="plans" className="animate-fade-in-up mb-5 scroll-mt-6 empty:hidden" style={{ animationDelay: "60ms" }}>
           <LicenseBanner key={workspaceGeneration} onWorkspaceChange={handleWorkspaceChange} />
         </div>
 
         <main className="flex flex-col gap-5">
-          <div className="animate-fade-in-up" style={{ animationDelay: "110ms" }}>
+          {/* Signed-in workspaces only: setup checklist + hot leads to act on. */}
+          <div className="animate-fade-in-up empty:hidden" style={{ animationDelay: "85ms" }}>
+            <GettingStarted
+              key={workspaceGeneration}
+              leads={leads}
+              onSelectLead={(lead) => setSelectedId(lead.id)}
+            />
+          </div>
+          <div id="upload" className="animate-fade-in-up scroll-mt-6" style={{ animationDelay: "110ms" }}>
             <UploadPanel onUploaded={handleUploaded} />
           </div>
           {leads.length > 0 && (
