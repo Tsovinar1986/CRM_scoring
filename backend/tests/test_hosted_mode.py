@@ -130,7 +130,9 @@ def test_subscribing_upgrades_the_workspace_and_cancelling_downgrades_it(client,
 
 
 def test_hosted_signup_starts_on_starter(client, hosted, monkeypatch):
-    monkeypatch.setattr("app.routers.accounts.verify_license", lambda: SimpleNamespace(tier="advanced"))
+    # No seller license needed: a hosted signup is a free workspace that
+    # upgrades by paying, not an agency onboarding a client.
+    monkeypatch.setattr("app.routers.accounts.verify_license", lambda: None)
 
     response = client.post(
         "/api/accounts/signup", json={"name": "Jo", "email": "jo@example.com", "password": "Sup3r-secret-pass!"}

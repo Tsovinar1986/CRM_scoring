@@ -13,7 +13,8 @@ That's a real tradeoff -- logging in on a second device signs the first one
 out -- documented rather than hidden, since it's the kind of thing that's
 confusing to hit by surprise.
 
-Signup itself is gated to an Advanced-tier license (see app/licensing.py) --
+On a self-hosted install, signup is gated to an Advanced-tier license (see
+app/licensing.py; HOSTED_MODE signups are free Starter workspaces instead) --
 onboarding new client workspaces is exactly what "best for agencies running
 it across multiple clients" (docs/index.html's Advanced card) promises,
 so it's the one real capability difference from Pro today. Login is
@@ -66,12 +67,16 @@ class TenantAuthResponse(BaseModel):
 @router.post("/signup", response_model=TenantAuthResponse)
 @limiter.limit(RATE_LIMIT_AUTH)
 def signup(request: Request, payload: SignupRequest):
-    license_info = verify_license()
-    if license_info is None or license_info.tier != "advanced":
-        raise HTTPException(
-            status_code=402,
-            detail="Onboarding new client workspaces requires an Advanced license on this deployment.",
-        )
+    # On the hosted deployment a signup is just a Starter workspace with a
+    # login, upgraded later by paying for that workspace -- the Advanced gate
+    # only applies to a self-hosted agency onboarding its own clients.
+    if not HOSTED_MODE:
+        license_info = verify_license()
+        if license_info is None or license_info.tier != "advanced":
+            raise HTTPException(
+                status_code=402,
+                detail="Onboarding new client workspaces requires an Advanced license on this deployment.",
+            )
     if storage.get_tenant_by_email(payload.email) is not None:
         raise HTTPException(status_code=409, detail="An account with that email already exists.")
     try:
