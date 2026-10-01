@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 def new_id() -> str:
@@ -51,7 +51,9 @@ class ScoreBreakdown(BaseModel):
 class ScoredLead(EnrichedLead):
     fit_score: float
     score_breakdown: ScoreBreakdown
-    account_fit_score: float
+    # Leads stored before account-level-only scoring (Sep 2026) saved this as
+    # conversion_likelihood -- accept that name so they still load.
+    account_fit_score: float = Field(validation_alias=AliasChoices("account_fit_score", "conversion_likelihood"))
     llm_rationale: str
     combined_score: float
     bucket: str  # "hot" | "warm" | "cold"

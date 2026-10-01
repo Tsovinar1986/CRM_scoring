@@ -1,3 +1,4 @@
+import json
 import sqlite3
 
 from app import config, storage
@@ -337,3 +338,22 @@ def test_database_still_usable_after_injection_attempt_in_same_session():
 
     storage.upsert_leads(TENANT, [make_scored_lead(domain="still-here.com")])
     assert "still-here.com" in [lead.domain for lead in storage.list_leads(TENANT)]
+
+
+def test_list_leads_loads_rows_saved_before_account_fit_rename():
+    # Rows written before the Sep 2026 scoring change stored the LLM score as
+    # conversion_likelihood and carried since-removed fields -- they must
+    # still load rather than 500 the whole leads list.
+    old = make_scored_lead(domain="old.example").model_dump()
+    old["conversion_likelihood"] = old.pop("account_fit_score")
+    old["score_breakdown"]["title_seniority"] = 10.0
+    old["outreach_draft"] = None
+    with storage._lock, storage._conn:
+        storage._conn.execute(
+            "INSERT INTO leads (id, tenant_id, domain, combined_score, data) VALUES (?, ?, ?, ?, ?)",
+            (old["id"], TENANT, old["domain"], old["combined_score"], json.dumps(old)),
+        )
+
+    [lead] = storage.list_leads(TENANT)
+    assert lead.account_fit_score == old["conversion_likelihood"]
+    assert "conversion_likelihood" not in lead.model_dump_json()

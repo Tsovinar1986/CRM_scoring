@@ -1,8 +1,15 @@
-import pytest
+import os
 
-from app import storage
-from app.middleware import limiter
-from app.models import ScoreBreakdown, ScoredLead
+# Tests assume a self-hosted install; hosted-mode tests opt in via their own
+# fixture. Set before app.config loads a developer's .env, which never
+# overrides a variable that's already set.
+os.environ["HOSTED_MODE"] = "false"
+
+import pytest  # noqa: E402
+
+from app import storage  # noqa: E402
+from app.middleware import limiter  # noqa: E402
+from app.models import ScoreBreakdown, ScoredLead  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
