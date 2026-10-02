@@ -317,13 +317,10 @@ def _paid_until(subscription) -> float | None:
     return day_after.timestamp()
 
 
-@router.post("/subscription/cancel")
-def cancel_workspace_subscription(tenant: storage.Tenant = Depends(get_current_tenant)):
-    """Self-serve cancel for a hosted workspace. Stops future charges; the
-    workspace keeps its plan until the end of the period already paid for."""
-    subscription_id = storage.get_tenant_subscription_id(tenant.id)
-    if not subscription_id:
-        raise HTTPException(status_code=404, detail="This workspace has no active subscription.")
+def cancel_at_braintree(subscription_id: str):
+    """Stops future charges on a subscription. Returns it (None if Braintree
+    no longer has it); raises 502 if it couldn't be cancelled, so callers
+    never go on as if billing had stopped when it hasn't."""
     gateway = _gateway()
     try:
         subscription = gateway.subscription.find(subscription_id)
@@ -332,11 +329,22 @@ def cancel_workspace_subscription(tenant: storage.Tenant = Depends(get_current_t
             if not result.is_success:
                 logger.warning("Couldn't cancel {}: {}", subscription_id, result.message)
                 raise HTTPException(status_code=502, detail="Braintree couldn't cancel the subscription.")
+        return subscription
     except braintree.exceptions.NotFoundError:
-        subscription = None
+        return None
     except BraintreeError as exc:
         logger.warning("Couldn't cancel {}: {!r}", subscription_id, exc)
         raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
+
+
+@router.post("/subscription/cancel")
+def cancel_workspace_subscription(tenant: storage.Tenant = Depends(get_current_tenant)):
+    """Self-serve cancel for a hosted workspace. Stops future charges; the
+    workspace keeps its plan until the end of the period already paid for."""
+    subscription_id = storage.get_tenant_subscription_id(tenant.id)
+    if not subscription_id:
+        raise HTTPException(status_code=404, detail="This workspace has no active subscription.")
+    subscription = cancel_at_braintree(subscription_id)
 
     access_until = _paid_until(subscription) if subscription is not None else None
     storage.end_tenant_subscription(subscription_id, access_until)

@@ -93,3 +93,17 @@ export interface TenantAuth {
   name: string;
   api_key: string;
 }
+
+export interface Account {
+  name: string;
+  email: string | null;
+  // null = unmetered (provisioned by the seller); "starter" = free tier.
+  plan: PlanTier | null;
+  created_at: number;
+  uploads_used: number;
+  uploads_limit: number | null;
+  has_subscription: boolean;
+  // Set once a cancelled subscription is running out its paid period.
+  plan_expires_at: number | null;
+  has_password: boolean;
+}

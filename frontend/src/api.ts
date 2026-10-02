@@ -1,4 +1,5 @@
 import type {
+  Account,
   BillingConfig,
   LicenseStatus,
   ScoredLead,
@@ -169,6 +170,43 @@ export async function resetPassword(token: string, password: string): Promise<Te
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, password }),
+  });
+  return handle(res);
+}
+
+// Account settings for the signed-in workspace (404 on the self-hosted
+// default workspace, which isn't an account).
+export async function fetchAccount(): Promise<Account> {
+  const res = await fetch(`${BASE}/accounts/me`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function renameAccount(name: string): Promise<{ name: string }> {
+  const res = await fetch(`${BASE}/accounts/me`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ name }),
+  });
+  return handle(res);
+}
+
+// Returns a fresh key -- the old one (and any other device) is signed out.
+export async function changePassword(currentPassword: string, newPassword: string): Promise<TenantAuth> {
+  const res = await fetch(`${BASE}/accounts/me/password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  return handle(res);
+}
+
+// Permanent. Cancels any paid subscription first; password is null for a
+// free-trial workspace, which has no login.
+export async function deleteAccount(password: string | null): Promise<{ status: "deleted" }> {
+  const res = await fetch(`${BASE}/accounts/me`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ password }),
   });
   return handle(res);
 }

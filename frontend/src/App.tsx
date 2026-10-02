@@ -14,6 +14,7 @@ import { LicenseBanner } from "./components/LicenseBanner";
 import { ScoreDashboard } from "./components/ScoreDashboard";
 import { TenantSwitcher } from "./components/TenantSwitcher";
 import { UploadPanel } from "./components/UploadPanel";
+import { AccountSettings } from "./pages/AccountSettings";
 import { AuthPage } from "./pages/AuthPage";
 import { PurchaseComplete } from "./pages/PurchaseComplete";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -40,6 +41,20 @@ function LeadScoringApp() {
   // Hosted deployment with no workspace yet -> the sign-in page instead of
   // the app. null while that's still being checked.
   const [needsAuth, setNeedsAuth] = useState<boolean | null>(getTenantApiKey() ? false : null);
+  // #account opens the settings page; any other hash is the dashboard
+  // (scrolled to that section, e.g. #plans). Back/forward just work.
+  const [showAccount, setShowAccount] = useState(window.location.hash === "#account");
+
+  useEffect(() => {
+    const onHashChange = () => setShowAccount(window.location.hash === "#account");
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    const target = !showAccount && window.location.hash.slice(1);
+    if (target) document.getElementById(target)?.scrollIntoView({ behavior: "smooth" });
+  }, [showAccount]);
 
   useEffect(() => {
     if (getTenantApiKey()) {
@@ -74,6 +89,11 @@ function LeadScoringApp() {
   }
 
   function handleWorkspaceChange() {
+    if (!getTenantApiKey() && showAccount) {
+      // Signed out or deleted from the settings page -- nothing left to show there.
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      setShowAccount(false);
+    }
     setAuthError(null);
     setSelectedId(null);
     setWorkspaceGeneration((n) => n + 1);
@@ -88,6 +108,13 @@ function LeadScoringApp() {
         {authError && <p className="bg-hot-soft px-4 py-2 text-center text-sm text-hot">{authError}</p>}
         <AuthPage onSignedIn={handleWorkspaceChange} />
       </>
+    );
+  }
+  if (showAccount && getTenantApiKey()) {
+    return (
+      <div className="min-h-screen bg-bg font-sans text-text antialiased">
+        <AccountSettings key={workspaceGeneration} onWorkspaceChange={handleWorkspaceChange} />
+      </div>
     );
   }
 
@@ -112,7 +139,14 @@ function LeadScoringApp() {
                 </p>
               </div>
             </div>
-            <TenantSwitcher onChange={handleWorkspaceChange} />
+            <div className="flex flex-wrap items-center gap-3">
+              {getTenantApiKey() && (
+                <a href="#account" className="text-sm font-medium text-accent hover:underline">
+                  Account settings
+                </a>
+              )}
+              <TenantSwitcher onChange={handleWorkspaceChange} />
+            </div>
           </div>
           {authError && <p className="mt-3 text-sm text-hot">{authError}</p>}
         </header>

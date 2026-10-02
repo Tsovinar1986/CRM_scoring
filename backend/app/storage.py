@@ -239,6 +239,43 @@ def update_tenant_password(tenant_id: str, password_hash: str) -> None:
         _conn.execute("UPDATE tenants SET password_hash = ? WHERE id = ?", (password_hash, tenant_id))
 
 
+def get_account(tenant_id: str) -> dict | None:
+    """Everything the account-settings page shows about one workspace."""
+    with _lock:
+        row = _conn.execute(
+            "SELECT name, email, plan, created_at, uploads_used, subscription_id, plan_expires_at, password_hash "
+            "FROM tenants WHERE id = ?",
+            (tenant_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    name, email, plan, created_at, uploads_used, subscription_id, plan_expires_at, password_hash = row
+    return {
+        "name": name,
+        "email": email,
+        "plan": plan,
+        "created_at": created_at,
+        "uploads_used": uploads_used,
+        "subscription_id": subscription_id,
+        "plan_expires_at": plan_expires_at,
+        "password_hash": password_hash,
+    }
+
+
+def rename_tenant(tenant_id: str, name: str) -> None:
+    with _lock, _conn:
+        _conn.execute("UPDATE tenants SET name = ? WHERE id = ?", (name, tenant_id))
+
+
+def delete_tenant(tenant_id: str) -> None:
+    """Erases a workspace and everything stored under it, in one transaction."""
+    with _lock, _conn:
+        _conn.execute("DELETE FROM leads WHERE tenant_id = ?", (tenant_id,))
+        _conn.execute("DELETE FROM alerts WHERE tenant_id = ?", (tenant_id,))
+        _conn.execute("DELETE FROM password_resets WHERE tenant_id = ?", (tenant_id,))
+        _conn.execute("DELETE FROM tenants WHERE id = ?", (tenant_id,))
+
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 

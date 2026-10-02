@@ -187,3 +187,108 @@ def test_reset_password_rejects_weak_new_password(client):
 
     resp = client.post("/api/accounts/reset-password", json={"token": token, "password": "weak"})
     assert resp.status_code == 400
+
+
+# --- Account settings ---
+
+
+def _signed_in(client, **kwargs):
+    resp = _signup(client, **kwargs)
+    return {"Authorization": f"Bearer {resp.json()['api_key']}"}
+
+
+def test_me_returns_the_signed_in_account(client):
+    headers = _signed_in(client)
+    me = client.get("/api/accounts/me", headers=headers).json()
+    assert me["name"] == "Acme Corp"
+    assert me["email"] == "buyer@acme.com"
+    assert me["has_password"] is True
+    assert me["has_subscription"] is False
+
+
+def test_me_is_not_available_for_the_self_hosted_default_workspace(client):
+    assert client.get("/api/accounts/me").status_code == 404
+
+
+def test_rename_workspace(client):
+    headers = _signed_in(client)
+    assert client.patch("/api/accounts/me", headers=headers, json={"name": "  New Name "}).status_code == 200
+    assert client.get("/api/accounts/me", headers=headers).json()["name"] == "New Name"
+
+
+def test_change_password_needs_the_current_one_and_rotates_the_key(client):
+    headers = _signed_in(client)
+    wrong = client.post(
+        "/api/accounts/me/password", headers=headers,
+        json={"current_password": "nope", "new_password": "Brand-New-Pass7"},
+    )
+    assert wrong.status_code == 403
+
+    resp = client.post(
+        "/api/accounts/me/password", headers=headers,
+        json={"current_password": "Correct-Horse9", "new_password": "Brand-New-Pass7"},
+    )
+    assert resp.status_code == 200
+    assert client.get("/api/accounts/me", headers=headers).status_code == 401  # old key signed out
+    login = client.post("/api/accounts/login", json={"email": "buyer@acme.com", "password": "Brand-New-Pass7"})
+    assert login.status_code == 200
+
+
+def test_change_password_enforces_strength(client):
+    headers = _signed_in(client)
+    resp = client.post(
+        "/api/accounts/me/password", headers=headers,
+        json={"current_password": "Correct-Horse9", "new_password": "weak"},
+    )
+    assert resp.status_code == 400
+
+
+def test_delete_account_needs_the_password(client):
+    headers = _signed_in(client)
+    resp = client.request("DELETE", "/api/accounts/me", headers=headers, json={"password": "wrong"})
+    assert resp.status_code == 403
+    assert client.get("/api/accounts/me", headers=headers).status_code == 200
+
+
+def test_delete_account_erases_the_workspace_and_its_leads(client):
+    from .conftest import make_scored_lead
+
+    headers = _signed_in(client)
+    tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
+    storage.upsert_leads(tenant.id, [make_scored_lead()])
+
+    resp = client.request("DELETE", "/api/accounts/me", headers=headers, json={"password": "Correct-Horse9"})
+    assert resp.status_code == 200
+    assert storage.list_leads(tenant.id) == []
+    assert storage.get_tenant_by_email("buyer@acme.com") is None
+    assert client.post(
+        "/api/accounts/login", json={"email": "buyer@acme.com", "password": "Correct-Horse9"}
+    ).status_code == 401
+
+
+def test_delete_account_cancels_the_subscription_first(client, monkeypatch):
+    headers = _signed_in(client)
+    tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
+    storage.set_tenant_subscription(tenant.id, "pro", "sub9")
+    cancelled = []
+    monkeypatch.setattr(accounts, "cancel_at_braintree", lambda sub_id: cancelled.append(sub_id))
+
+    resp = client.request("DELETE", "/api/accounts/me", headers=headers, json={"password": "Correct-Horse9"})
+    assert resp.status_code == 200
+    assert cancelled == ["sub9"]
+
+
+def test_delete_account_keeps_everything_if_the_cancel_fails(client, monkeypatch):
+    from fastapi import HTTPException
+
+    headers = _signed_in(client)
+    tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
+    storage.set_tenant_subscription(tenant.id, "pro", "sub9")
+
+    def fail(sub_id):
+        raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
+
+    monkeypatch.setattr(accounts, "cancel_at_braintree", fail)
+    resp = client.request("DELETE", "/api/accounts/me", headers=headers, json={"password": "Correct-Horse9"})
+    assert resp.status_code == 502
+    assert client.get("/api/accounts/me", headers=headers).json()["has_subscription"] is True
