@@ -18,8 +18,14 @@
   --color-hot-soft: rgba(220, 38, 38, 0.1);
   --color-warm: #d97706;
   --color-warm-soft: rgba(217, 119, 6, 0.12);
-  --color-cold: #6b7280;
-  --color-cold-soft: rgba(107, 114, 128, 0.12);
+  --color-cold: #2563eb;
+  --color-cold-soft: rgba(37, 99, 235, 0.1);
+  /* Chart marks for the three buckets -- validated as a set (dataviz
+     validate_palette.js: lightness band, chroma, CVD + normal-vision
+     separation) against the light panel; dark mode re-steps them below. */
+  --color-chart-hot: #dc2626;
+  --color-chart-warm: #ca8a04;
+  --color-chart-cold: #2563eb;
 
   --font-sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
@@ -75,7 +81,11 @@
     --color-accent-soft: rgba(192, 132, 252, 0.15);
     --color-hot-soft: rgba(220, 38, 38, 0.2);
     --color-warm-soft: rgba(217, 119, 6, 0.2);
-    --color-cold-soft: rgba(107, 114, 128, 0.2);
+    --color-chart-hot: #e11d48;
+    --color-chart-warm: #b98a00;
+    --color-chart-cold: #3b82f6;
+    --color-cold: #3b82f6;
+    --color-cold-soft: rgba(59, 130, 246, 0.2);
   }
 }
 :root[data-theme="dark"] {
@@ -88,7 +98,11 @@
   --color-accent-soft: rgba(192, 132, 252, 0.15);
   --color-hot-soft: rgba(220, 38, 38, 0.2);
   --color-warm-soft: rgba(217, 119, 6, 0.2);
-  --color-cold-soft: rgba(107, 114, 128, 0.2);
+  --color-chart-hot: #e11d48;
+  --color-chart-warm: #b98a00;
+  --color-chart-cold: #3b82f6;
+  --color-cold: #3b82f6;
+  --color-cold-soft: rgba(59, 130, 246, 0.2);
 }
 :root[data-theme="light"] {
   --color-bg: #f7f7f8;
@@ -100,7 +114,11 @@
   --color-accent-soft: rgba(124, 58, 237, 0.1);
   --color-hot-soft: rgba(220, 38, 38, 0.1);
   --color-warm-soft: rgba(217, 119, 6, 0.12);
-  --color-cold-soft: rgba(107, 114, 128, 0.12);
+  --color-cold: #2563eb;
+  --color-cold-soft: rgba(37, 99, 235, 0.1);
+  --color-chart-hot: #dc2626;
+  --color-chart-warm: #ca8a04;
+  --color-chart-cold: #2563eb;
 }
 
 body {
