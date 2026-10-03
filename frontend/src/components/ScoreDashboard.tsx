@@ -124,7 +124,7 @@ export function ScoreDashboard({ leads }: Props) {
           <figcaption className="text-sm font-medium text-heading">Average score breakdown</figcaption>
           <p className="text-xs text-text/70">Points per dimension, averaged across this batch.</p>
           <div className="mt-3">
-            <BarChart bars={bars} color="var(--color-accent)" />
+            <BarChart bars={bars} color="var(--color-chart-series)" />
           </div>
         </figure>
       </div>
@@ -135,7 +135,7 @@ export function ScoreDashboard({ leads }: Props) {
         <div className="mt-3">
           <RankedLineChart
             points={ranked}
-            color="var(--color-accent)"
+            color="var(--color-chart-series)"
             thresholds={[
               { label: `Hot ≥ ${HOT_CUTOFF}`, value: HOT_CUTOFF, color: "var(--color-chart-hot)" },
               { label: `Warm ≥ ${WARM_CUTOFF}`, value: WARM_CUTOFF, color: "var(--color-chart-warm)" },

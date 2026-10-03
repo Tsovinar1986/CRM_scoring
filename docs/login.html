@@ -180,8 +180,6 @@
     // Same backend as index.html's billing calls -- see index.html for the
     // fuller explanation.
     var API_BASE = "https://ai-lead-generation-scoring.onrender.com/api";
-    var WORKSPACE_KEY_STORAGE = "crmscoring_workspace_key";
-    var NEW_USER_STORAGE = "crmscoring_new_user";
 
     function showPanel(name) {
       ["login", "signup", "forgot", "forgot-sent", "key"].forEach(function (p) {
@@ -202,15 +200,19 @@
         body: JSON.stringify(body),
       });
       var data = await res.json().catch(function () { return null; });
-      if (!res.ok) throw new Error((data && data.detail) || "Something went wrong.");
+      if (!res.ok) throw new Error((data && (data.detail || data.error)) || "Something went wrong.");
       return data;
     }
 
-    function enterWorkspace(apiKey, isNewUser) {
-      localStorage.setItem(WORKSPACE_KEY_STORAGE, apiKey);
-      localStorage.setItem(NEW_USER_STORAGE, isNewUser ? "1" : "0");
+    // Hands the workspace to the hosted app (the same place "Get started
+    // free" on index.html goes), which picks the key up from #workspace=...
+    // and drops it from the URL. One app for everyone after sign-in.
+    var APP_URL = API_BASE.replace(/\/api$/, "/");
+    function enterWorkspace(apiKey) {
+      // Lets index.html show Dashboard / Account settings instead of Log in.
+      try { localStorage.setItem("crmscoring_signed_in", "1"); } catch (e) {}
       showPanel("key");
-      window.location.href = "app.html";
+      window.location.href = APP_URL + "#workspace=" + encodeURIComponent(apiKey);
     }
 
     async function handleLogin() {
@@ -221,7 +223,7 @@
       btn.textContent = "Logging in…";
       try {
         var auth = await authRequest("/accounts/login", { email: email, password: password });
-        enterWorkspace(auth.api_key, false);
+        enterWorkspace(auth.api_key);
       } catch (err) {
         showError("login", err.message);
       } finally {
@@ -239,7 +241,7 @@
       btn.textContent = "Creating…";
       try {
         var auth = await authRequest("/accounts/signup", { name: name, email: email, password: password });
-        enterWorkspace(auth.api_key, true);
+        enterWorkspace(auth.api_key);
       } catch (err) {
         showError("signup", err.message);
       } finally {

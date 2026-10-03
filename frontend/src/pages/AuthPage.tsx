@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { forgotPassword, login, setTenantApiKey, signup, startFreeTrial } from "../api";
+import { SITE_URL, forgotPassword, login, setTenantApiKey, signup, startFreeTrial } from "../api";
+import { Logo } from "../components/Logo";
 
 type Mode = "login" | "signup" | "forgot" | "forgot-sent";
 
@@ -84,19 +85,13 @@ export function AuthPage({ onSignedIn }: Props) {
     (mode !== "signup" || Boolean(name.trim()));
 
   return (
-    <div className="min-h-screen bg-bg font-sans text-text antialiased">
+    <div className="min-h-screen font-sans text-text antialiased">
       <div className="mx-auto flex min-h-screen max-w-[960px] flex-col justify-center px-4 py-10 sm:px-6">
-        <header className="animate-fade-in-up mb-8 flex items-center justify-center gap-3 text-center">
-          <span
-            aria-hidden="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent/70 font-display text-lg font-semibold text-white shadow-[0_2px_8px_-2px_var(--color-accent)]"
-          >
-            A
-          </span>
-          <div className="text-left">
-            <p className="font-display text-xl font-semibold tracking-tight text-heading">AI Lead Scoring</p>
-            <p className="text-sm text-text/75">Upload leads, get a ranked score, act on the hot ones.</p>
-          </div>
+        <header className="animate-fade-in-up mb-8 flex flex-col items-center gap-1 text-center">
+          <a href={SITE_URL}>
+            <Logo />
+          </a>
+          <p className="text-sm text-text/75">Upload leads, get a ranked score, act on the hot ones.</p>
         </header>
 
         <div className="grid items-stretch gap-5 md:grid-cols-[1.15fr_1fr]">
@@ -252,11 +247,11 @@ export function AuthPage({ onSignedIn }: Props) {
 
         <p className="mt-6 text-center text-xs text-text/60">
           By continuing you agree to the{" "}
-          <a className="underline underline-offset-2 hover:text-heading" href="https://crmscoring.com/terms.html">
+          <a className="underline underline-offset-2 hover:text-heading" href={`${SITE_URL}/terms.html`}>
             Terms
           </a>{" "}
           and{" "}
-          <a className="underline underline-offset-2 hover:text-heading" href="https://crmscoring.com/privacy.html">
+          <a className="underline underline-offset-2 hover:text-heading" href={`${SITE_URL}/privacy.html`}>
             Privacy Policy
           </a>
           .

@@ -33,6 +33,10 @@ export function clearTenantApiKey(): void {
   localStorage.removeItem(TENANT_KEY_STORAGE_KEY);
 }
 
+// The marketing site (docs/ on GitHub Pages): where the logo links and where
+// the hosted app sends someone after they sign out.
+export const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://crmscoring.com").replace(/\/$/, "");
+
 function authHeaders(): Record<string, string> {
   const key = getTenantApiKey();
   return key ? { Authorization: `Bearer ${key}` } : {};
@@ -44,7 +48,11 @@ export class TenantAuthError extends Error {}
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
-    const message = body.detail ?? "Request failed";
+    // slowapi's rate-limit response carries "error", not "detail".
+    const message =
+      res.status === 429
+        ? "Too many attempts from your network. Please wait a while and try again."
+        : (body.detail ?? body.error ?? "Request failed");
     if (res.status === 402) throw new LicenseRequiredError(message);
     if (res.status === 401) throw new TenantAuthError(message);
     throw new Error(message);

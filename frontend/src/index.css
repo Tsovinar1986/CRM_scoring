@@ -7,33 +7,36 @@
    runtime, so overriding these variables for dark mode further down still
    works exactly the way it did with hand-written CSS. */
 @theme {
-  --color-bg: #f7f7f8;
-  --color-panel: #ffffff;
-  --color-border: #e5e4e7;
-  --color-text: #4b5563;
-  --color-heading: #08060d;
-  --color-accent: #7c3aed;
-  --color-accent-soft: rgba(124, 58, 237, 0.1);
-  --color-hot: #dc2626;
-  --color-hot-soft: rgba(220, 38, 38, 0.1);
-  --color-warm: #d97706;
-  --color-warm-soft: rgba(217, 119, 6, 0.12);
-  --color-cold: #2563eb;
-  --color-cold-soft: rgba(37, 99, 235, 0.1);
+  --color-bg: #f6f1e6;
+  --color-panel: #fffcf5;
+  --color-border: #e6dbc3;
+  --color-text: #6b6152;
+  --color-heading: #211b12;
+  --color-accent: #b3401f;
+  --color-accent-soft: rgba(179, 64, 31, 0.1);
+  --color-hot: #c53a2c;
+  --color-hot-soft: rgba(197, 58, 44, 0.1);
+  --color-warm: #a8710f;
+  --color-warm-soft: rgba(168, 113, 15, 0.13);
+  --color-cold: #2f6db5;
+  --color-cold-soft: rgba(47, 109, 181, 0.1);
+  --color-dot: rgba(33, 27, 18, 0.07);
   /* Chart marks for the three buckets -- validated as a set (dataviz
      validate_palette.js: lightness band, chroma, CVD + normal-vision
-     separation) against the light panel; dark mode re-steps them below. */
-  --color-chart-hot: #dc2626;
-  --color-chart-warm: #ca8a04;
-  --color-chart-cold: #2563eb;
+     separation) against the panel; dark mode re-steps them below. Single
+     series (bars, the ranked line) use the neutral ink so they never read
+     as "Hot" now that the accent is the same rust. */
+  --color-chart-hot: #b3401f;
+  --color-chart-warm: #b98a00;
+  --color-chart-cold: #2f6db5;
+  --color-chart-series: #6b6152;
 
-  --font-sans: system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, Consolas, monospace;
-  /* A confident editorial serif for headings, contrasting the clean sans
-     used for body copy/data -- system stack only (no @font-face, no
-     network fetch), since this product is explicitly self-hosted/offline
-     and shouldn't reach out to a font CDN just to render a heading. */
-  --font-display: ui-serif, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  /* Same faces as the marketing site (docs/), bundled via @fontsource in
+     main.tsx rather than fetched from a font CDN -- a self-hosted install
+     never reaches out to a third party just to render text. */
+  --font-sans: "IBM Plex Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --font-display: "Fraunces Variable", "Fraunces", ui-serif, Georgia, serif;
 
   --animate-fade-in: fade-in 0.4s ease-out both;
   --animate-fade-in-up: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -72,56 +75,81 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #16171d;
-    --color-panel: #1e1f27;
-    --color-border: #2e303a;
-    --color-text: #9ca3af;
-    --color-heading: #f3f4f6;
-    --color-accent: #c084fc;
-    --color-accent-soft: rgba(192, 132, 252, 0.15);
-    --color-hot-soft: rgba(220, 38, 38, 0.2);
-    --color-warm-soft: rgba(217, 119, 6, 0.2);
-    --color-chart-hot: #e11d48;
+    --color-bg: #18130c;
+    --color-panel: #211a11;
+    --color-border: #382d1e;
+    --color-text: #b6a993;
+    --color-heading: #f4ead9;
+    --color-accent: #e37a4c;
+    --color-accent-soft: rgba(227, 122, 76, 0.16);
+    --color-hot: #ea6a53;
+    --color-hot-soft: rgba(234, 106, 83, 0.18);
+    --color-warm: #dba43b;
+    --color-warm-soft: rgba(219, 164, 59, 0.18);
+    --color-cold: #5b8fd6;
+    --color-cold-soft: rgba(91, 143, 214, 0.18);
+    --color-dot: rgba(244, 234, 217, 0.06);
+    /* Hot sits at crimson, not orange-red: on this surface an orange-red
+       can't clear deuteranopia separation from the amber. */
+    --color-chart-hot: #e0455a;
     --color-chart-warm: #b98a00;
-    --color-chart-cold: #3b82f6;
-    --color-cold: #3b82f6;
-    --color-cold-soft: rgba(59, 130, 246, 0.2);
+    --color-chart-cold: #5b8fd6;
+    --color-chart-series: #b6a993;
   }
 }
 :root[data-theme="dark"] {
-  --color-bg: #16171d;
-  --color-panel: #1e1f27;
-  --color-border: #2e303a;
-  --color-text: #9ca3af;
-  --color-heading: #f3f4f6;
-  --color-accent: #c084fc;
-  --color-accent-soft: rgba(192, 132, 252, 0.15);
-  --color-hot-soft: rgba(220, 38, 38, 0.2);
-  --color-warm-soft: rgba(217, 119, 6, 0.2);
-  --color-chart-hot: #e11d48;
+  --color-bg: #18130c;
+  --color-panel: #211a11;
+  --color-border: #382d1e;
+  --color-text: #b6a993;
+  --color-heading: #f4ead9;
+  --color-accent: #e37a4c;
+  --color-accent-soft: rgba(227, 122, 76, 0.16);
+  --color-hot: #ea6a53;
+  --color-hot-soft: rgba(234, 106, 83, 0.18);
+  --color-warm: #dba43b;
+  --color-warm-soft: rgba(219, 164, 59, 0.18);
+  --color-cold: #5b8fd6;
+  --color-cold-soft: rgba(91, 143, 214, 0.18);
+  --color-dot: rgba(244, 234, 217, 0.06);
+  /* Hot sits at crimson, not orange-red: on this surface an orange-red
+     can't clear deuteranopia separation from the amber. */
+  --color-chart-hot: #e0455a;
   --color-chart-warm: #b98a00;
-  --color-chart-cold: #3b82f6;
-  --color-cold: #3b82f6;
-  --color-cold-soft: rgba(59, 130, 246, 0.2);
+  --color-chart-cold: #5b8fd6;
+  --color-chart-series: #b6a993;
 }
 :root[data-theme="light"] {
-  --color-bg: #f7f7f8;
-  --color-panel: #ffffff;
-  --color-border: #e5e4e7;
-  --color-text: #4b5563;
-  --color-heading: #08060d;
-  --color-accent: #7c3aed;
-  --color-accent-soft: rgba(124, 58, 237, 0.1);
-  --color-hot-soft: rgba(220, 38, 38, 0.1);
-  --color-warm-soft: rgba(217, 119, 6, 0.12);
-  --color-cold: #2563eb;
-  --color-cold-soft: rgba(37, 99, 235, 0.1);
-  --color-chart-hot: #dc2626;
-  --color-chart-warm: #ca8a04;
-  --color-chart-cold: #2563eb;
+  --color-bg: #f6f1e6;
+  --color-panel: #fffcf5;
+  --color-border: #e6dbc3;
+  --color-text: #6b6152;
+  --color-heading: #211b12;
+  --color-accent: #b3401f;
+  --color-accent-soft: rgba(179, 64, 31, 0.1);
+  --color-hot: #c53a2c;
+  --color-hot-soft: rgba(197, 58, 44, 0.1);
+  --color-warm: #a8710f;
+  --color-warm-soft: rgba(168, 113, 15, 0.13);
+  --color-cold: #2f6db5;
+  --color-cold-soft: rgba(47, 109, 181, 0.1);
+  --color-dot: rgba(33, 27, 18, 0.07);
+  /* Chart marks for the three buckets -- validated as a set (dataviz
+     validate_palette.js: lightness band, chroma, CVD + normal-vision
+     separation) against the panel; dark mode re-steps them below. Single
+     series (bars, the ranked line) use the neutral ink so they never read
+     as "Hot" now that the accent is the same rust. */
+  --color-chart-hot: #b3401f;
+  --color-chart-warm: #b98a00;
+  --color-chart-cold: #2f6db5;
+  --color-chart-series: #6b6152;
 }
 
 body {
   color-scheme: light dark;
   -webkit-font-smoothing: antialiased;
+  /* The marketing site's dotted paper, so the app reads as the same product. */
+  background-color: var(--color-bg);
+  background-image: radial-gradient(var(--color-dot) 1.4px, transparent 1.4px);
+  background-size: 26px 26px;
 }

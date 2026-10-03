@@ -7,7 +7,9 @@ import {
   fetchAccount,
   renameAccount,
   setTenantApiKey,
+  SITE_URL,
 } from "../api";
+import { Logo } from "../components/Logo";
 import type { Account } from "../types";
 
 const inputClasses =
@@ -177,6 +179,10 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
 
   const header = (
     <div className="mb-6">
+      <a href={SITE_URL} className="mb-5 inline-block">
+        <Logo />
+      </a>
+      <br />
       <a href="#" className="text-sm text-accent hover:underline">
         ← Back to dashboard
       </a>

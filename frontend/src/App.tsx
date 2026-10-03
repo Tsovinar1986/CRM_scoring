@@ -4,10 +4,12 @@ import {
   clearTenantApiKey,
   fetchLeads,
   fetchLicenseStatus,
+  SITE_URL,
   getTenantApiKey,
   setTenantApiKey,
 } from "./api";
 import { GettingStarted } from "./components/GettingStarted";
+import { Logo } from "./components/Logo";
 import { LeadDetail } from "./components/LeadDetail";
 import { LeadsTable } from "./components/LeadsTable";
 import { LicenseBanner } from "./components/LicenseBanner";
@@ -56,14 +58,20 @@ function LeadScoringApp() {
     if (target) document.getElementById(target)?.scrollIntoView({ behavior: "smooth" });
   }, [showAccount]);
 
+  // Hosted deployment (crmscoring.com's app) vs a self-hosted install.
+  const [hosted, setHosted] = useState(false);
+
   useEffect(() => {
-    if (getTenantApiKey()) {
-      setNeedsAuth(false);
-      return;
-    }
+    const signedIn = Boolean(getTenantApiKey());
+    if (signedIn) setNeedsAuth(false);
     fetchLicenseStatus()
-      .then((status) => setNeedsAuth(Boolean(status.hosted)))
-      .catch(() => setNeedsAuth(false));
+      .then((status) => {
+        setHosted(Boolean(status.hosted));
+        if (!signedIn) setNeedsAuth(Boolean(status.hosted));
+      })
+      .catch(() => {
+        if (!signedIn) setNeedsAuth(false);
+      });
   }, [workspaceGeneration]);
 
   useEffect(() => {
@@ -89,6 +97,13 @@ function LeadScoringApp() {
   }
 
   function handleWorkspaceChange() {
+    if (!getTenantApiKey() && hosted) {
+      // Signed out, disconnected or deleted on the hosted app: back to the
+      // marketing site, the same place a new visitor starts.
+      // #signed-out tells the site to swap its nav back to "Log in / Sign up".
+      window.location.assign(`${SITE_URL}/#signed-out`);
+      return;
+    }
     if (!getTenantApiKey() && showAccount) {
       // Signed out or deleted from the settings page -- nothing left to show there.
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -112,32 +127,22 @@ function LeadScoringApp() {
   }
   if (showAccount && getTenantApiKey()) {
     return (
-      <div className="min-h-screen bg-bg font-sans text-text antialiased">
+      <div className="min-h-screen font-sans text-text antialiased">
         <AccountSettings key={workspaceGeneration} onWorkspaceChange={handleWorkspaceChange} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-bg font-sans text-text antialiased">
+    <div className="min-h-screen font-sans text-text antialiased">
       <div className="mx-auto max-w-[1200px] px-6 py-8">
         <header className="animate-fade-in-up mb-7">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent/70 font-display text-lg font-semibold text-white shadow-[0_2px_8px_-2px_var(--color-accent)]"
-              >
-                A
-              </span>
-              <div>
-                <h1 className="font-display text-[1.7rem] font-semibold tracking-tight text-heading">
-                  AI Lead Generation &amp; Scoring Agent
-                </h1>
-                <p className="mt-0.5 text-sm text-text/75">
-                  Upload leads, get a ranked hybrid score, act on the hot ones.
-                </p>
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <a href={SITE_URL} className="inline-block">
+                <Logo />
+              </a>
+              <p className="mt-1 text-sm text-text/75">Upload leads, get a ranked hybrid score, act on the hot ones.</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {getTenantApiKey() && (

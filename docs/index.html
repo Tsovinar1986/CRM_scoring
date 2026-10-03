@@ -218,7 +218,9 @@
         <span class="logo-word">CRM <em>Scoring</em></span>
       </div>
       <div class="nav-controls">
-        <a class="auth-link" href="login.html">Log in / Sign up</a>
+        <a class="auth-link" id="nav-auth" href="login.html">Log in / Sign up</a>
+        <a class="auth-link" id="nav-dashboard" href="https://ai-lead-generation-scoring.onrender.com/" hidden>Dashboard</a>
+        <a class="auth-link" id="nav-account" href="https://ai-lead-generation-scoring.onrender.com/#account" hidden>Account settings</a>
         <a class="btn btn-secondary" href="mailto:hello@crmscoring.com">Contact</a>
       </div>
     </header>
@@ -378,7 +380,7 @@
     function api(path, options) {
       return fetch(API_BASE + path, options).then(function (res) {
         return res.json().catch(function () { return {}; }).then(function (body) {
-          if (!res.ok) throw new Error(body.detail || "Something went wrong. Please try again.");
+          if (!res.ok) throw new Error(body.detail || body.error || "Something went wrong. Please try again.");
           return body;
         });
       });
@@ -404,6 +406,27 @@
     // "Get started free": creates a private trial workspace on the hosted app
     // and opens it; the app picks the key up from #workspace=... .
     var APP_URL = API_BASE.replace(/\/api$/, "/");
+
+    // The app lives on another origin, so this site can't see its session.
+    // Instead it remembers that it handed someone off (trial or login) and
+    // swaps the nav to Dashboard / Account settings; the app sends people
+    // back here with #signed-out when they sign out, which clears it.
+    var SIGNED_IN_FLAG = "crmscoring_signed_in";
+    function markSignedIn() { try { localStorage.setItem(SIGNED_IN_FLAG, "1"); } catch (e) {} }
+    (function syncNav() {
+      var signedIn = false;
+      try {
+        if (location.hash === "#signed-out") {
+          localStorage.removeItem(SIGNED_IN_FLAG);
+          history.replaceState(null, "", location.pathname + location.search);
+        }
+        signedIn = localStorage.getItem(SIGNED_IN_FLAG) === "1";
+      } catch (e) {}
+      $("nav-auth").hidden = signedIn;
+      $("nav-dashboard").hidden = !signedIn;
+      $("nav-account").hidden = !signedIn;
+    })();
+
     function openTrial() {
       clearError();
       closeCheckout();
@@ -419,6 +442,7 @@
       $("trial-start").textContent = "Setting up your workspace…";
       $("trial-error").hidden = true;
       api("/accounts/trial", { method: "POST" }).then(function (body) {
+        markSignedIn();
         window.location.href = APP_URL + "#workspace=" + encodeURIComponent(body.api_key);
       }, function (err) {
         $("trial-start").disabled = false;

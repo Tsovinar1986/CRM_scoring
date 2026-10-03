@@ -15,7 +15,7 @@ function CheckIcon({ className }: { className?: string }) {
 
 export function PurchaseComplete() {
   return (
-    <div className="min-h-screen bg-bg font-sans text-text antialiased">
+    <div className="min-h-screen font-sans text-text antialiased">
       <div className="animate-fade-in-up mx-auto flex max-w-[480px] flex-col items-center gap-3 px-6 pt-[15vh] text-center">
         <div className="w-full rounded-xl border border-border bg-panel p-7 shadow-sm">
           <CheckIcon className="mx-auto mb-3 h-12 w-12 text-accent" />
