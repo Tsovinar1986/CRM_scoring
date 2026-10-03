@@ -130,6 +130,20 @@
   .hero p { font-size: 1.15rem; color: var(--text-muted); max-width: 620px; margin: 0 auto 34px; }
   .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
+  /* Dashboard preview: a real screenshot of the app (light + dark), framed
+     as a browser window so it reads as "this is what you get". */
+  section.preview { padding: 8px 0 64px; text-align: center; }
+  section.preview h2 { font-size: 1.5rem; margin: 0 0 6px; }
+  section.preview p.lede { color: var(--text-muted); margin: 0 auto 26px; max-width: 560px; }
+  .preview-frame {
+    background: var(--bg-alt); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 24px 60px -28px rgba(33, 27, 18, 0.35); overflow: hidden; text-align: left;
+  }
+  .preview-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .preview-bar span { width: 9px; height: 9px; border-radius: 999px; background: var(--border); }
+  .preview-bar em { margin-left: 10px; font-style: normal; font-size: 0.78rem; color: var(--text-muted); }
+  .preview-frame img { display: block; width: 100%; height: auto; }
+  .preview-caption { font-size: 0.85rem; color: var(--text-muted); margin-top: 14px; }
   section.features { padding: 52px 0; border-top: 1px solid var(--border); }
   .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
   @media (max-width: 720px) { .feature-grid { grid-template-columns: 1fr; } }
@@ -240,6 +254,28 @@
       </div>
     </div>
   </div>
+
+  <section class="preview" aria-labelledby="preview-title">
+    <div class="wrap">
+      <h2 id="preview-title" class="rise" style="animation-delay:260ms;">What you'll see after your first upload</h2>
+      <p class="lede rise" style="animation-delay:300ms;">
+        Every account scored and bucketed, the Hot/Warm/Cold mix at a glance,
+        and exactly where your list drops off.
+      </p>
+      <div class="preview-frame rise" style="animation-delay:340ms;">
+        <div class="preview-bar" aria-hidden="true"><span></span><span></span><span></span><em>Scoring overview</em></div>
+        <picture>
+          <source srcset="assets/dashboard-preview-dark.png" media="(prefers-color-scheme: dark)" />
+          <img
+            src="assets/dashboard-preview-light.png"
+            width="1600" height="981" loading="lazy"
+            alt="The Scoring overview dashboard for 10 sample leads: totals of 3 Hot, 6 Warm and 1 Cold, a donut of that mix, bars for the average score in each scoring dimension, and a line of every lead's score ranked best to worst against the Hot (75) and Warm (50) cutoffs."
+          />
+        </picture>
+      </div>
+      <p class="preview-caption">Sample data. Your dashboard fills in from your own CRM export.</p>
+    </div>
+  </section>
 
   <section class="features">
     <div class="wrap">
