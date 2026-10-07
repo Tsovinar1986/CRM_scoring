@@ -86,3 +86,18 @@ def test_upload_rate_limit_returns_429_after_the_configured_cap(client):
     responses = [_upload(client) for _ in range(11)]
     assert [r.status_code for r in responses[:10]] == [200] * 10
     assert responses[10].status_code == 429
+
+
+def test_frontend_files_cannot_escape_the_build_directory(tmp_path):
+    from app.main import frontend_file
+
+    dist = tmp_path / "dist"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "index.html").write_text("app")
+    (dist / "assets" / "app.js").write_text("js")
+    (tmp_path / ".env").write_text("SECRET=1")
+
+    assert frontend_file(dist, "assets/app.js") == (dist / "assets" / "app.js").resolve()
+    assert frontend_file(dist, "purchase-complete") == (dist / "index.html").resolve()
+    for attack in ["../.env", "assets/../../.env", str(tmp_path / ".env")]:
+        assert frontend_file(dist, attack) == (dist / "index.html").resolve(), attack

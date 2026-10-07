@@ -127,6 +127,20 @@ def _license_status(tenant: storage.Tenant | None) -> dict:
     }
 
 
+def frontend_file(dist: Path, full_path: str) -> Path:
+    """The built asset at full_path, or index.html for client-side routes.
+
+    full_path arrives percent-decoded, so "..%2F" becomes "../" -- resolve it
+    and refuse anything that lands outside the build, or a crafted URL could
+    read .env, the database, or the source code.
+    """
+    root = dist.resolve()
+    candidate = (root / full_path).resolve()
+    if candidate.is_relative_to(root) and candidate.is_file():
+        return candidate
+    return root / "index.html"
+
+
 if FRONTEND_DIST.is_dir():
     # Registered last so every /api/* route above already matched first --
     # this only ever runs for paths none of those routers claimed. Serves a
@@ -135,7 +149,4 @@ if FRONTEND_DIST.is_dir():
     # on a hard refresh.
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str):
-        candidate = FRONTEND_DIST / full_path
-        if candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(FRONTEND_DIST / "index.html")
+        return FileResponse(frontend_file(FRONTEND_DIST, full_path))
