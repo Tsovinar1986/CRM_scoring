@@ -144,6 +144,29 @@
   .preview-bar em { margin-left: 10px; font-style: normal; font-size: 0.78rem; color: var(--text-muted); }
   .preview-frame img { display: block; width: 100%; height: auto; }
   .preview-caption { font-size: 0.85rem; color: var(--text-muted); margin-top: 14px; }
+  /* Install on any device: the hosted app is installable (manifest + icons),
+     so instead of store badges each platform gets its own short steps. */
+  section.install { padding: 56px 0; border-top: 1px solid var(--border); text-align: center; }
+  section.install h2 { font-size: 1.5rem; margin: 0 0 6px; }
+  section.install p.lede { color: var(--text-muted); margin: 0 auto 24px; max-width: 560px; }
+  .device-tabs { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 18px; }
+  .device-tabs button {
+    font: inherit; font-size: 0.88rem; font-weight: 500; padding: 8px 14px; border-radius: 4px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-alt); color: var(--text);
+  }
+  .device-tabs button[aria-selected="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+  .install-card {
+    max-width: 560px; margin: 0 auto; text-align: left; background: var(--bg-alt);
+    border: 1px solid var(--border); border-radius: 8px; padding: 22px 26px;
+  }
+  .install-card h3 { margin: 0 0 4px; font-size: 1.1rem; }
+  .install-card .where { margin: 0 0 14px; font-size: 0.88rem; color: var(--text-muted); }
+  .install-card ol { margin: 0 0 18px; padding-left: 1.3em; color: var(--text); }
+  .install-card li { margin: 7px 0; }
+  .install-card strong { color: var(--text-h); font-weight: 600; }
+  .install-card a { color: var(--accent); font-weight: 600; text-underline-offset: 3px; }
+  .install-icon { display: flex; align-items: center; gap: 12px; margin-top: 22px; justify-content: center; color: var(--text-muted); font-size: 0.85rem; }
+  .install-icon img { width: 44px; height: 44px; border-radius: 10px; }
   section.features { padding: 52px 0; border-top: 1px solid var(--border); }
   .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
   @media (max-width: 720px) { .feature-grid { grid-template-columns: 1fr; } }
@@ -274,6 +297,65 @@
         </picture>
       </div>
       <p class="preview-caption">Sample data. Your dashboard fills in from your own CRM export.</p>
+    </div>
+  </section>
+
+  <section class="install" id="install" aria-labelledby="install-title">
+    <div class="wrap">
+      <h2 id="install-title">Install it on any device</h2>
+      <p class="lede">
+        CRM Scoring installs straight from your browser: it gets its own icon
+        and opens in its own window, like any app. No app store, nothing to
+        update by hand.
+      </p>
+      <div class="device-tabs" role="tablist" aria-label="Choose your device">
+        <button role="tab" id="tab-ios" aria-controls="panel-ios" aria-selected="true">iPhone &amp; iPad</button>
+        <button role="tab" id="tab-android" aria-controls="panel-android" aria-selected="false" tabindex="-1">Android phone &amp; tablet</button>
+        <button role="tab" id="tab-mac" aria-controls="panel-mac" aria-selected="false" tabindex="-1">Mac</button>
+        <button role="tab" id="tab-windows" aria-controls="panel-windows" aria-selected="false" tabindex="-1">Windows PC</button>
+      </div>
+
+      <div class="install-card" role="tabpanel" id="panel-ios" aria-labelledby="tab-ios">
+        <h3>iPhone &amp; iPad</h3>
+        <p class="where">In Safari (or Chrome on iOS 16.4 and later).</p>
+        <ol>
+          <li>Open <a class="app-link" href="https://ai-lead-generation-scoring.onrender.com/">the CRM Scoring app</a>.</li>
+          <li>Tap <strong>Share</strong> (the square with an arrow). On iPad it's at the top right; on iPhone, at the bottom.</li>
+          <li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+        </ol>
+      </div>
+      <div class="install-card" role="tabpanel" id="panel-android" aria-labelledby="tab-android" hidden>
+        <h3>Android phone &amp; tablet</h3>
+        <p class="where">In Chrome, Edge or Samsung Internet.</p>
+        <ol>
+          <li>Open <a class="app-link" href="https://ai-lead-generation-scoring.onrender.com/">the CRM Scoring app</a>.</li>
+          <li>Tap the <strong>⋮</strong> menu at the top right.</li>
+          <li>Tap <strong>Install app</strong> (or <strong>Add to Home screen</strong>), then <strong>Install</strong>.</li>
+        </ol>
+      </div>
+      <div class="install-card" role="tabpanel" id="panel-mac" aria-labelledby="tab-mac" hidden>
+        <h3>Mac</h3>
+        <p class="where">In Safari (macOS Sonoma or later), Chrome or Edge.</p>
+        <ol>
+          <li>Open <a class="app-link" href="https://ai-lead-generation-scoring.onrender.com/">the CRM Scoring app</a>.</li>
+          <li><strong>Safari:</strong> choose <strong>File → Add to Dock</strong>.</li>
+          <li><strong>Chrome or Edge:</strong> click <strong>Install app</strong> at the top of the app, or the install icon at the right end of the address bar.</li>
+        </ol>
+      </div>
+      <div class="install-card" role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
+        <h3>Windows PC</h3>
+        <p class="where">In Edge or Chrome.</p>
+        <ol>
+          <li>Open <a class="app-link" href="https://ai-lead-generation-scoring.onrender.com/">the CRM Scoring app</a>.</li>
+          <li>Click <strong>Install app</strong> at the top of the app, or the install icon at the right end of the address bar.</li>
+          <li>Click <strong>Install</strong>. It's added to the Start menu; right-click it there to pin it to the taskbar.</li>
+        </ol>
+      </div>
+
+      <div class="install-icon">
+        <img src="assets/app-icon.png" alt="" width="44" height="44" />
+        <span>Look for this icon after installing.</span>
+      </div>
     </div>
   </section>
 
@@ -461,6 +543,31 @@
       $("nav-auth").hidden = signedIn;
       $("nav-dashboard").hidden = !signedIn;
       $("nav-account").hidden = !signedIn;
+    })();
+
+    // Install section: tabs per device, opening on the visitor's own.
+    (function installTabs() {
+      var ids = ["ios", "android", "mac", "windows"];
+      function select(id, focus) {
+        ids.forEach(function (d) {
+          var on = d === id;
+          $("tab-" + d).setAttribute("aria-selected", on ? "true" : "false");
+          $("tab-" + d).tabIndex = on ? 0 : -1;
+          $("panel-" + d).hidden = !on;
+        });
+        if (focus) $("tab-" + id).focus();
+      }
+      ids.forEach(function (d, i) {
+        $("tab-" + d).addEventListener("click", function () { select(d); });
+        $("tab-" + d).addEventListener("keydown", function (e) {
+          if (e.key === "ArrowRight") select(ids[(i + 1) % ids.length], true);
+          if (e.key === "ArrowLeft") select(ids[(i + ids.length - 1) % ids.length], true);
+        });
+      });
+      var ua = navigator.userAgent;
+      // iPadOS reports itself as a Mac; touch support gives it away.
+      var iPad = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+      select(/iPhone|iPad|iPod/.test(ua) || iPad ? "ios" : /Android/.test(ua) ? "android" : /Macintosh/.test(ua) ? "mac" : /Windows/.test(ua) ? "windows" : "ios");
     })();
 
     function openTrial() {

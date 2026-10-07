@@ -9,6 +9,7 @@ import {
   setTenantApiKey,
 } from "./api";
 import { GettingStarted } from "./components/GettingStarted";
+import { InstallAppButton } from "./components/InstallAppButton";
 import { Logo } from "./components/Logo";
 import { LeadDetail } from "./components/LeadDetail";
 import { LeadsTable } from "./components/LeadsTable";
@@ -145,6 +146,7 @@ function LeadScoringApp() {
               <p className="mt-1 text-sm text-text/75">Upload leads, get a ranked hybrid score, act on the hot ones.</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              <InstallAppButton />
               {getTenantApiKey() && (
                 <a href="#account" className="text-sm font-medium text-accent hover:underline">
                   Account settings
