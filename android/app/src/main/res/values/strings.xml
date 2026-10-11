@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">CRM Scoring</string>
+    <string name="starting">Starting CRM Scoring…\nThe first load can take up to a minute.</string>
+    <string name="offline_title">Can\'t reach CRM Scoring</string>
+    <string name="try_again">Try again</string>
+    <string name="save_failed">Couldn\'t save the file.</string>
+</resources>

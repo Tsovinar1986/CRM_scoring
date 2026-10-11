@@ -32,8 +32,26 @@ export function leadsToCsv(leads: ScoredLead[]): string {
   return [header, ...rows].join("\n");
 }
 
+// The native iOS/macOS and Android apps show this web app in a web view, where
+// blob downloads go nowhere; each app exposes a bridge that saves the file.
+interface NativeBridges {
+  webkit?: { messageHandlers?: { saveFile?: { postMessage: (msg: { filename: string; text: string }) => void } } };
+  CRMScoringAndroid?: { saveFile: (filename: string, text: string) => void };
+}
+
 export function downloadLeadsCsv(leads: ScoredLead[], filename = "scored-leads.csv"): void {
-  const blob = new Blob([leadsToCsv(leads)], { type: "text/csv;charset=utf-8;" });
+  const csv = leadsToCsv(leads);
+  const native = window as unknown as NativeBridges;
+  const apple = native.webkit?.messageHandlers?.saveFile;
+  if (apple) {
+    apple.postMessage({ filename, text: csv });
+    return;
+  }
+  if (native.CRMScoringAndroid) {
+    native.CRMScoringAndroid.saveFile(filename, csv);
+    return;
+  }
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

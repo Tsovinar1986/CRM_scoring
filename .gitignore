@@ -10,3 +10,6 @@ frontend/dist/
 licensing/issued_licenses.jsonl
 
 *.db
+
+# Xcode per-user state
+xcuserdata/

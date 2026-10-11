@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The CRM Scoring logo's three bucket dots (frontend/public/app-icon.svg),
+     inside the adaptive icon's 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#EA6A53" android:pathData="M35,54m-8.4,0a8.4,8.4 0,1 1,16.8 0a8.4,8.4 0,1 1,-16.8 0" />
+    <path android:fillColor="#DBA43B" android:pathData="M54,54m-8.4,0a8.4,8.4 0,1 1,16.8 0a8.4,8.4 0,1 1,-16.8 0" />
+    <path android:fillColor="#5B8FD6" android:pathData="M73,54m-8.4,0a8.4,8.4 0,1 1,16.8 0a8.4,8.4 0,1 1,-16.8 0" />
+</vector>

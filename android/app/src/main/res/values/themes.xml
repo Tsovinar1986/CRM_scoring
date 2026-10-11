@@ -1,0 +1,9 @@
+<resources>
+    <color name="ink">#211B12</color>
+    <color name="paper">#F6F1E6</color>
+
+    <style name="Theme.CRMScoring" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/paper</item>
+        <item name="android:colorAccent">#EA6A53</item>
+    </style>
+</resources>
