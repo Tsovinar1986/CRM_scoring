@@ -10,6 +10,7 @@ import {
   SITE_URL,
 } from "../api";
 import { Logo } from "../components/Logo";
+import { isNativeApp } from "../nativeApp";
 import type { Account } from "../types";
 
 const inputClasses =
@@ -251,7 +252,7 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
             </Row>
           </dl>
           <div className="mt-4 flex flex-wrap gap-2">
-            {(account.plan === "starter" || (account.plan_expires_at && !account.has_subscription)) && (
+            {!isNativeApp() && (account.plan === "starter" || (account.plan_expires_at && !account.has_subscription)) && (
               <a href="#plans" className={btnPrimary}>
                 {account.plan === "starter" ? "Upgrade plan" : "Resubscribe"}
               </a>

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { SITE_URL, forgotPassword, login, setTenantApiKey, signup, startFreeTrial } from "../api";
 import { Logo } from "../components/Logo";
+import { isNativeApp } from "../nativeApp";
 
 type Mode = "login" | "signup" | "forgot" | "forgot-sent";
 
@@ -14,7 +15,7 @@ const linkBtn = "bg-transparent text-sm text-accent underline-offset-2 hover:und
 
 const TITLES: Record<Mode, { title: string; subtitle: string }> = {
   login: { title: "Welcome back", subtitle: "Log in to your workspace and pick up where you left off." },
-  signup: { title: "Create your account", subtitle: "Your own private workspace — start free, upgrade any time." },
+  signup: { title: "Create your account", subtitle: isNativeApp() ? "Your own private workspace — start free." : "Your own private workspace — start free, upgrade any time." },
   forgot: { title: "Reset your password", subtitle: "We'll email you a link to choose a new one." },
   "forgot-sent": { title: "Check your inbox", subtitle: "If that email has an account, a reset link is on its way." },
 };
@@ -223,7 +224,8 @@ export function AuthPage({ onSignedIn }: Props) {
               {[
                 "No email or card needed",
                 "10 uploads, up to 10 leads each",
-                "Upgrade to Pro or Advanced from inside the app",
+                // The native apps don't sell plans (store billing rules).
+                ...(isNativeApp() ? [] : ["Upgrade to Pro or Advanced from inside the app"]),
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <span

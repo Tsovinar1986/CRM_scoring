@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LicenseBanner } from "./LicenseBanner";
 import * as api from "../api";
 import * as braintree from "../braintree";
@@ -297,5 +297,38 @@ describe("LicenseBanner", () => {
 
     expect(await screen.findByText(/cancelled, active until/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /cancel subscription/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("LicenseBanner in the native apps", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (iPhone) CRMScoringApp/1.0");
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows uploads left but no buy buttons or upgrade prompt", async () => {
+    api.setTenantApiKey("trial-key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({ ...trial, hosted: true, trial_uploads_left: 7 });
+
+    render(<LicenseBanner />);
+
+    expect(await screen.findByText("Starter (free) — 7 of 10 uploads left.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /pro|advanced/i })).not.toBeInTheDocument();
+  });
+
+  it("tells a trial that ran out it ended, without asking to subscribe", async () => {
+    api.setTenantApiKey("trial-key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({ ...trial, hosted: true, reason: "trial_expired", trial_uploads_left: 0 });
+
+    render(<LicenseBanner />);
+
+    expect(await screen.findByText("Your free trial has ended.")).toBeInTheDocument();
+    expect(screen.queryByText(/subscribe/i)).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchLicenseStatus, getTenantApiKey } from "../api";
+import { isNativeApp } from "../nativeApp";
 import type { LicenseStatus, ScoredLead } from "../types";
 
 interface Step {
@@ -47,13 +48,18 @@ export function GettingStarted({ leads, onSelectLead }: Props) {
       hint: "Open a hot lead and send it to Salesforce.",
       done: leads.some((l) => l.crm_pushed),
     },
-    {
-      label: "Upgrade to Pro or Advanced",
-      hint: "Unlimited uploads, CRM sync and Slack alerts.",
-      done: status.licensed,
-      href: "#plans",
-      action: "See plans",
-    },
+    // The native apps don't sell plans (store billing rules).
+    ...(isNativeApp()
+      ? []
+      : [
+          {
+            label: "Upgrade to Pro or Advanced",
+            hint: "Unlimited uploads, CRM sync and Slack alerts.",
+            done: status.licensed,
+            href: "#plans",
+            action: "See plans",
+          },
+        ]),
   ];
   const doneCount = steps.filter((s) => s.done).length;
   const complete = doneCount === steps.length;

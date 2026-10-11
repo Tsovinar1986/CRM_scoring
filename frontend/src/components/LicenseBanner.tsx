@@ -8,6 +8,7 @@ import {
   startFreeTrial,
 } from "../api";
 import type { BillingConfig, BillingInterval, LicenseStatus, PaidTier } from "../types";
+import { isNativeApp } from "../nativeApp";
 import { BraintreeSubscribe } from "./BraintreeSubscribe";
 
 type Selection = { tier: PaidTier; interval: BillingInterval };
@@ -180,8 +181,24 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
   // reads as "your payment didn't go through" and risks a double-charge.
   // Someone whose free trial window has simply run out (never paid) also
   // needs its own copy, distinct from "still evaluating."
+  const native = isNativeApp();
   const { message, showBuyButtons } =
-    status.reason === "expired"
+    native
+      ? // The native apps don't sell plans (store billing rules), so no buy buttons or upgrade prompts.
+        {
+          message:
+            status.reason === "expired"
+              ? "Your license has expired."
+              : status.reason === "invalid"
+                ? "Your license key couldn't be verified."
+                : status.reason === "trial_expired"
+                  ? "Your free trial has ended."
+                  : status.trial_uploads_left != null
+                    ? `Starter (free) — ${status.trial_uploads_left} of 10 uploads left.`
+                    : "Running on the free Starter tier.",
+          showBuyButtons: false,
+        }
+      : status.reason === "expired"
       ? {
           message: `Your license${status.customer_email ? ` for ${status.customer_email}` : ""} has expired — renew to keep syncing to your CRM/Slack.`,
           showBuyButtons: true,

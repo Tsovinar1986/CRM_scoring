@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LicenseRequiredError, TenantAuthError, fetchBillingConfig, uploadLeads } from "../api";
 import type { BillingConfig, BillingInterval, ScoredLead } from "../types";
+import { isNativeApp } from "../nativeApp";
 import { BraintreeSubscribe } from "./BraintreeSubscribe";
 
 interface Props {
@@ -59,7 +60,7 @@ export function UploadPanel({ onUploaded }: Props) {
       const { leads, trialLimitedRows, trialTotalRows } = await uploadLeads(file);
       if (trialLimitedRows != null && trialTotalRows != null) {
         setTrialLimitNotice(
-          `Trial scores the first ${trialLimitedRows} of ${trialTotalRows} rows — upgrade for the full file.`
+          `Trial scores the first ${trialLimitedRows} of ${trialTotalRows} rows${isNativeApp() ? "." : " — upgrade for the full file."}`
         );
       }
       onUploaded(leads);
@@ -164,20 +165,24 @@ export function UploadPanel({ onUploaded }: Props) {
       {licenseRequired && (
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-sm text-hot">
           <p>Your trial has expired — a license is required to keep scoring leads.</p>
-          <button className={btnPrimary} disabled={busy} onClick={() => setBuyInterval("monthly")}>
-            $20/mo
-          </button>
-          <button className={btnPrimary} disabled={busy} onClick={() => setBuyInterval("annual")}>
-            Buy annual (save 20%)
-          </button>
-          {buyInterval && billing && (
-            <BraintreeSubscribe
-              key={buyInterval}
-              config={billing}
-              tier="pro"
-              interval={buyInterval}
-              onClose={() => setBuyInterval(null)}
-            />
+          {!isNativeApp() && (
+            <>
+              <button className={btnPrimary} disabled={busy} onClick={() => setBuyInterval("monthly")}>
+                $20/mo
+              </button>
+              <button className={btnPrimary} disabled={busy} onClick={() => setBuyInterval("annual")}>
+                Buy annual (save 20%)
+              </button>
+              {buyInterval && billing && (
+                <BraintreeSubscribe
+                  key={buyInterval}
+                  config={billing}
+                  tier="pro"
+                  interval={buyInterval}
+                  onClose={() => setBuyInterval(null)}
+                />
+              )}
+            </>
           )}
         </div>
       )}
