@@ -32,6 +32,16 @@ import androidx.core.view.WindowInsetsCompat
 private val APP_URL: Uri = Uri.parse("https://ai-lead-generation-scoring.onrender.com/")
 
 /**
+ * The marketing website (SITE_URL in frontend/src/api.ts). Logging out sends the
+ * page to its home page, and the logo links there; in the app those show the
+ * login screen instead. Other pages on it (terms, privacy) open in the browser.
+ */
+private val SITE_HOSTS = setOf("crmscoring.com", "www.crmscoring.com")
+
+private fun isWebsiteHome(url: Uri): Boolean =
+    url.host?.lowercase() in SITE_HOSTS && (url.path.isNullOrEmpty() || url.path == "/" || url.path == "/index.html")
+
+/**
  * Shows the hosted CRM Scoring web app and does what a browser would for it:
  * outside links open in the browser, the lead upload gets the system file
  * picker, and the CSV export (handed over through the `CRMScoringAndroid`
@@ -151,7 +161,12 @@ class MainActivity : ComponentActivity() {
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (!request.isForMainFrame || !opensOutside(request.url)) return false
+                if (!request.isForMainFrame) return false
+                if (isWebsiteHome(request.url)) {
+                    view.loadUrl(APP_URL.toString()) // logged out: back to the login screen
+                    return true
+                }
+                if (!opensOutside(request.url)) return false
                 openExternally(request.url)
                 return true
             }

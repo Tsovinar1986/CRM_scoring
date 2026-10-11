@@ -52,6 +52,21 @@ struct ContentView: View {
             } message: { dialog in
                 Text(dialog.message)
             }
+            #if DEBUG
+            // Shows the current page's path so we can see exactly where logout /
+            // back lands and keep `landingPaths` accurate. Debug builds only.
+            .overlay(alignment: .bottom) {
+                if let url = model.currentURL {
+                    Text(url.path.isEmpty ? "/" : url.path)
+                        .font(.caption2.monospaced())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(.bottom, 8)
+                        .allowsHitTesting(false)
+                }
+            }
+            #endif
     }
 }
 

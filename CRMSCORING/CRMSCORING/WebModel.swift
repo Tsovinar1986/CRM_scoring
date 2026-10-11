@@ -17,6 +17,26 @@ import UIKit
 /// options), skipping the marketing landing page that the website shows.
 let appURL = URL(string: "https://ai-lead-generation-scoring.onrender.com/")!
 
+/// Same-host pages that are the public marketing / landing page rather than
+/// the logged-in app. When the user logs out or swipes back onto one of these,
+/// the app reloads the login screen (`appURL`) instead of stranding them on the
+/// website's landing page.
+///
+/// If logout / back lands somewhere not listed here, run a debug build and read
+/// the path shown at the bottom of the screen, then add it to this set.
+let landingPaths: Set<String> = ["/home", "/landing", "/index.html", "/welcome", "/start"]
+
+/// The marketing website (SITE_URL in frontend/src/api.ts). Logging out sends
+/// the page to its home page ("https://crmscoring.com/#signed-out"), and the
+/// logo links there too; in the app those show the login screen instead of
+/// opening the browser. Other pages on it (terms, privacy) still open outside.
+let siteHosts: Set<String> = ["crmscoring.com", "www.crmscoring.com"]
+
+private func isWebsiteHome(_ url: URL) -> Bool {
+    guard let host = url.host?.lowercased(), siteHosts.contains(host) else { return false }
+    return url.path.isEmpty || url.path == "/" || url.path == "/index.html"
+}
+
 /// A JavaScript alert/confirm from the page, shown as a native alert.
 struct PageDialog: Identifiable {
     let id = UUID()
@@ -36,6 +56,11 @@ final class WebModel: NSObject {
     var hasContent = false
     var errorMessage: String?
     var dialog: PageDialog?
+    /// The web view's current URL, mirrored here so SwiftUI can show it in debug
+    /// builds and so we can react when the user reaches the landing page.
+    var currentURL: URL?
+    @ObservationIgnored private var redirectingToLogin = false
+    @ObservationIgnored private var urlObservation: NSKeyValueObservation?
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -47,6 +72,13 @@ final class WebModel: NSObject {
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
+        // Watch the URL so that logging out or swiping back onto the public
+        // landing page bounces the user to the login screen.
+        urlObservation = webView.observe(\.url, options: [.new]) { [weak self] webView, _ in
+            guard let self else { return }
+            self.currentURL = webView.url
+            self.redirectToLoginIfOnLanding()
+        }
         #if os(iOS)
         let refresh = UIRefreshControl()
         refresh.addAction(UIAction { [weak self] _ in self?.webView.reload() }, for: .valueChanged)
@@ -62,6 +94,18 @@ final class WebModel: NSObject {
         } else {
             webView.load(URLRequest(url: appURL))
         }
+    }
+
+    /// Bounces the user back to the login screen when they log out or swipe back
+    /// onto the public landing page. A fresh load of `appURL` reliably shows the
+    /// login screen, so we never loop on the pages we send them to.
+    private func redirectToLoginIfOnLanding() {
+        guard !redirectingToLogin,
+              let url = webView.url,
+              url.host?.lowercased() == appURL.host?.lowercased(),
+              landingPaths.contains(url.path) else { return }
+        redirectingToLogin = true
+        webView.load(URLRequest(url: appURL))
     }
 
     /// Pages of the hosted app stay in the app; everything else (help links,
@@ -83,6 +127,7 @@ final class WebModel: NSObject {
     }
 
     private func finishLoading() {
+        redirectingToLogin = false
         isLoading = false
         #if os(iOS)
         webView.scrollView.refreshControl?.endRefreshing()
@@ -129,6 +174,12 @@ extension WebModel: WKNavigationDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
         // Only top-level navigations leave the app; embedded frames (e.g. the
         // card fields on the subscription form) load where they are.
+        if let url = navigationAction.request.url,
+           navigationAction.targetFrame?.isMainFrame != false,
+           isWebsiteHome(url) {
+            webView.load(URLRequest(url: appURL)) // logged out: back to the login screen
+            return .cancel
+        }
         if let url = navigationAction.request.url,
            navigationAction.targetFrame?.isMainFrame != false,
            Self.opensOutside(url) {
