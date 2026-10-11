@@ -144,11 +144,15 @@
   .preview-bar em { margin-left: 10px; font-style: normal; font-size: 0.78rem; color: var(--text-muted); }
   .preview-frame img { display: block; width: 100%; height: auto; }
   .preview-caption { font-size: 0.85rem; color: var(--text-muted); margin-top: 14px; }
-  /* Install on any device: the hosted app is installable (manifest + icons),
-     so instead of store badges each platform gets its own short steps. */
+  /* Install on any device: the hosted app is installable (manifest + icons).
+     The store badges open the matching platform's steps (no store listing yet). */
   section.install { padding: 56px 0; border-top: 1px solid var(--border); text-align: center; }
   section.install h2 { font-size: 1.5rem; margin: 0 0 6px; }
   section.install p.lede { color: var(--text-muted); margin: 0 auto 24px; max-width: 560px; }
+  .store-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 0 0 20px; }
+  .store-badges button { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 10px; line-height: 0; }
+  .store-badges button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .store-badges img { height: 48px; width: auto; display: block; }
   .device-tabs { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 18px; }
   .device-tabs button {
     font: inherit; font-size: 0.88rem; font-weight: 500; padding: 8px 14px; border-radius: 4px; cursor: pointer;
@@ -308,6 +312,14 @@
         and opens in its own window, like any app. No app store, nothing to
         update by hand.
       </p>
+      <div class="store-badges">
+        <button type="button" data-device="ios" aria-label="Install on iPhone and iPad">
+          <img src="assets/app-store-badge.svg" alt="" width="144" height="48" />
+        </button>
+        <button type="button" data-device="android" aria-label="Install on Android">
+          <img src="assets/google-play-badge.svg" alt="" width="162" height="48" />
+        </button>
+      </div>
       <div class="device-tabs" role="tablist" aria-label="Choose your device">
         <button role="tab" id="tab-ios" aria-controls="panel-ios" aria-selected="true">iPhone &amp; iPad</button>
         <button role="tab" id="tab-android" aria-controls="panel-android" aria-selected="false" tabindex="-1">Android phone &amp; tablet</button>
@@ -562,6 +574,12 @@
         $("tab-" + d).addEventListener("keydown", function (e) {
           if (e.key === "ArrowRight") select(ids[(i + 1) % ids.length], true);
           if (e.key === "ArrowLeft") select(ids[(i + ids.length - 1) % ids.length], true);
+        });
+      });
+      document.querySelectorAll(".store-badges button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          select(b.dataset.device);
+          $("panel-" + b.dataset.device).scrollIntoView({ behavior: "smooth", block: "center" });
         });
       });
       var ua = navigator.userAgent;
