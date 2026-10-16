@@ -1,154 +1,207 @@
 import json
-from datetime import date
+import time
 from types import SimpleNamespace
 
-import braintree
 import pytest
+import stripe
 from fastapi import HTTPException
 
 from app.routers import billing
 
-PLANS = {
-    "BRAINTREE_PLAN_PRO_MONTHLY": "pro-m",
-    "BRAINTREE_PLAN_PRO_ANNUAL": "pro-a",
-    "BRAINTREE_PLAN_ADVANCED_MONTHLY": "adv-m",
-    "BRAINTREE_PLAN_ADVANCED_ANNUAL": "adv-a",
-}
-Kind = braintree.WebhookNotification.Kind
+PERIOD_END = 1_790_000_000
 
 
-def _subscription(sub_id="sub1", plan_id="pro-m", status="Active", paid_through=date(2026, 10, 25)):
-    return SimpleNamespace(
-        id=sub_id, status=status, plan_id=plan_id, paid_through_date=paid_through, payment_method_token="pm1"
-    )
+def _subscription(sub_id="sub1", tier="pro", interval="monthly", status="active", period_end=PERIOD_END, **extra):
+    return {
+        "id": sub_id,
+        "status": status,
+        "metadata": {"tier": tier, "interval": interval},
+        "items": {"data": [{"current_period_end": period_end}]},
+        "customer": {"id": "cus_1", "email": "buyer@example.com"},
+        **extra,
+    }
 
 
-def _result(ok, **attrs):
-    return SimpleNamespace(is_success=ok, message=attrs.pop("message", None), **attrs)
+def _session(session_id="cs_test_1", subscription=None, **overrides):
+    return {
+        "id": session_id,
+        "mode": "subscription",
+        "status": "complete",
+        "payment_status": "paid",
+        "customer_details": {"email": "buyer@example.com"},
+        "subscription": subscription if subscription is not None else _subscription(),
+        **overrides,
+    }
 
 
-class FakeGateway:
-    """Stands in for braintree.BraintreeGateway; records what checkout sent."""
+class FakeStripe:
+    """Stands in for the stripe module; records what checkout sent."""
 
     def __init__(self):
-        self.customer_params = None
-        self.subscription_params = None
-        self.customer_result = _result(
-            True, customer=SimpleNamespace(payment_methods=[SimpleNamespace(token="pm1")])
-        )
-        self.subscription_result = _result(True, subscription=_subscription())
-        self.customer = SimpleNamespace(create=self._create_customer)
-        self.subscription = SimpleNamespace(create=self._create_subscription)
-        self.client_token = SimpleNamespace(generate=lambda: "client-token")
+        self.prices = {}  # lookup key -> price id
+        self.created_prices = []
+        self.created_sessions = []
+        self.sessions = {}
+        self.subscriptions = {}
+        self.modified = []
+        self.cancelled = []
+        self.checkout = SimpleNamespace(Session=SimpleNamespace(create=self._create_session, retrieve=self._get_session))
+        self.Price = SimpleNamespace(list=self._list_prices, create=self._create_price)
+        self.Subscription = SimpleNamespace(retrieve=self._get_subscription, modify=self._modify, cancel=self._cancel)
 
-    def _create_customer(self, params):
-        self.customer_params = params
-        return self.customer_result
+    def _list_prices(self, lookup_keys, **kwargs):
+        return SimpleNamespace(data=[SimpleNamespace(id=self.prices[k]) for k in lookup_keys if k in self.prices])
 
-    def _create_subscription(self, params):
-        self.subscription_params = params
-        return self.subscription_result
+    def _create_price(self, **params):
+        self.created_prices.append(params)
+        self.prices[params["lookup_key"]] = f"price_{len(self.prices) + 1}"
+        return SimpleNamespace(id=self.prices[params["lookup_key"]])
+
+    def _create_session(self, **params):
+        self.created_sessions.append(params)
+        return {"id": "cs_test_new", "url": "https://checkout.stripe.com/c/pay/cs_test_new"}
+
+    def _get_session(self, session_id, expand=None):
+        if session_id not in self.sessions:
+            raise stripe.InvalidRequestError("No such checkout session", "id", code="resource_missing")
+        return self.sessions[session_id]
+
+    def _get_subscription(self, subscription_id, expand=None):
+        if subscription_id not in self.subscriptions:
+            raise stripe.InvalidRequestError("No such subscription", "id", code="resource_missing")
+        return self.subscriptions[subscription_id]
+
+    def _modify(self, subscription_id, **params):
+        self.modified.append((subscription_id, params))
+        return {**self.subscriptions[subscription_id], **params}
+
+    def _cancel(self, subscription_id):
+        self.cancelled.append(subscription_id)
+        return {**self.subscriptions[subscription_id], "status": "canceled"}
 
 
 @pytest.fixture
-def braintree_stub(monkeypatch, tmp_path):
-    """Stub Braintree and license issuing; records every issued transaction id."""
+def stripe_stub(monkeypatch, tmp_path):
+    """Stub Stripe and license issuing; records every issued transaction id."""
     issued = []
-    gateway = FakeGateway()
+    fake = FakeStripe()
     monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", tmp_path / "issued.jsonl")
-    monkeypatch.setattr(billing, "_gateway", lambda: gateway)
-    monkeypatch.setattr(billing, "_licensee", lambda sub: "buyer@example.com")
-    monkeypatch.setattr(billing, "BRAINTREE_MERCHANT_ID", "merchant")
-    monkeypatch.setattr(billing, "BRAINTREE_PUBLIC_KEY", "public")
-    monkeypatch.setattr(billing, "BRAINTREE_PRIVATE_KEY", "top-secret")
-    for name, value in PLANS.items():
-        monkeypatch.setattr(billing, name, value)
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_top-secret")
+    monkeypatch.setattr(billing, "_api", lambda: fake)
+    monkeypatch.setattr(billing, "_price_ids", {})
     billing.limiter.reset()
 
     def fake_issue(email, interval, tier, transaction_id):
         issued.append((transaction_id, tier, interval))
         with billing._ISSUED_LICENSES_LOG.open("a") as log:
-            log.write(json.dumps({"transaction_id": transaction_id}) + "\n")
-        return "key"
+            log.write(json.dumps({"transaction_id": transaction_id, "license_key": f"key-{len(issued)}"}) + "\n")
+        return f"key-{len(issued)}"
 
     monkeypatch.setattr(billing, "_issue_and_deliver", fake_issue)
-    gateway.issued = issued
-    return gateway
+    fake.issued = issued
+    return fake
 
 
-def _checkout(client, **overrides):
-    body = {"interval": "monthly", "tier": "pro", "email": "buyer@example.com", "payment_method_nonce": "nonce"}
-    return client.post("/api/billing/braintree/subscribe", json={**body, **overrides})
+def _webhook(client, monkeypatch, kind, obj):
+    monkeypatch.setattr(billing, "_parse_webhook", lambda payload, signature: {"type": kind, "data": {"object": obj}})
+    return client.post("/api/billing/stripe/webhook", content=b"{}", headers={"stripe-signature": "sig"})
 
 
-def _webhook(client, monkeypatch, kind, subscription_id="sub1"):
-    notification = SimpleNamespace(kind=kind, subscription=SimpleNamespace(id=subscription_id))
-    monkeypatch.setattr(billing, "_parse_webhook", lambda signature, payload: notification)
-    return client.post("/api/billing/braintree/webhook", data={"bt_signature": "sig", "bt_payload": "payload"})
-
-
-def test_billing_config_exposes_plans_but_no_secrets(client, braintree_stub):
+def test_billing_config_shows_prices_but_no_secrets(client, stripe_stub):
     body = client.get("/api/billing/config").json()
 
     assert body["checkout_available"] is True
-    assert body["plans"] == {
-        "pro_monthly": "pro-m",
-        "pro_annual": "pro-a",
-        "advanced_monthly": "adv-m",
-        "advanced_annual": "adv-a",
-    }
+    assert body["environment"] == "test"
+    assert body["price_monthly"] == "20.00"
     assert "top-secret" not in json.dumps(body)
 
 
-def test_billing_config_unavailable_without_keys(client, monkeypatch, braintree_stub):
-    monkeypatch.setattr(billing, "BRAINTREE_PRIVATE_KEY", "")
+def test_billing_config_unavailable_without_key(client, monkeypatch):
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "")
 
     assert client.get("/api/billing/config").json()["checkout_available"] is False
 
 
-def test_client_token(client, braintree_stub):
-    assert client.get("/api/billing/braintree/client-token").json() == {"client_token": "client-token"}
-
-
-def test_gateway_requires_keys(monkeypatch):
-    monkeypatch.setattr(billing, "BRAINTREE_MERCHANT_ID", "")
+def test_api_requires_key(monkeypatch):
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "")
 
     with pytest.raises(HTTPException) as exc:
-        billing._gateway()
+        billing._api()
     assert exc.value.status_code == 503
 
 
-def test_subscribe_vaults_card_and_returns_license(client, braintree_stub):
-    braintree_stub.subscription_result = _result(True, subscription=_subscription(plan_id="adv-a"))
+def test_checkout_from_the_app_returns_to_the_app(client, monkeypatch, stripe_stub):
+    monkeypatch.setattr(billing, "APP_BASE_URL", "https://app.example.com/")
 
-    response = _checkout(client, tier="advanced", interval="annual", device_data="dd")
+    response = client.post("/api/billing/stripe/checkout", json={"tier": "advanced", "interval": "annual"})
 
-    assert response.json() == {
+    assert response.json() == {"url": "https://checkout.stripe.com/c/pay/cs_test_new", "session_id": "cs_test_new"}
+    params = stripe_stub.created_sessions[0]
+    assert params["mode"] == "subscription"
+    assert params["success_url"] == "https://app.example.com/?checkout={CHECKOUT_SESSION_ID}"
+    assert params["cancel_url"] == "https://app.example.com/#plans"
+    assert params["subscription_data"] == {"metadata": {"tier": "advanced", "interval": "annual"}}
+    assert stripe_stub.created_prices[0]["unit_amount"] == 38400
+    assert stripe_stub.created_prices[0]["recurring"] == {"interval": "year"}
+
+
+def test_checkout_from_the_website_returns_to_its_thank_you_page(client, monkeypatch, stripe_stub):
+    monkeypatch.setattr(billing, "STOREFRONT_URL", "https://crmscoring.com")
+
+    client.post("/api/billing/stripe/checkout", json={"tier": "pro", "interval": "monthly", "source": "site"})
+
+    params = stripe_stub.created_sessions[0]
+    assert params["success_url"] == "https://crmscoring.com/thank-you.html?session_id={CHECKOUT_SESSION_ID}"
+    assert params["cancel_url"] == "https://crmscoring.com/#pricing"
+
+
+def test_prices_are_created_once_then_reused(client, monkeypatch, stripe_stub):
+    client.post("/api/billing/stripe/checkout", json={"interval": "monthly"})
+    monkeypatch.setattr(billing, "_price_ids", {})  # e.g. after a restart: found again by lookup key
+    client.post("/api/billing/stripe/checkout", json={"interval": "monthly"})
+
+    assert len(stripe_stub.created_prices) == 1
+    assert stripe_stub.created_prices[0]["lookup_key"] == "crm-scoring-pro-monthly-2000-usd"
+    assert [s["line_items"][0]["price"] for s in stripe_stub.created_sessions] == ["price_1", "price_1"]
+
+
+def test_checkout_rejects_unknown_plan(client, stripe_stub):
+    assert client.post("/api/billing/stripe/checkout", json={"tier": "gold", "interval": "monthly"}).status_code == 422
+
+
+def test_session_returns_the_license_and_a_reload_shows_the_same_key(client, stripe_stub):
+    stripe_stub.sessions["cs_test_1"] = _session()
+
+    first = client.get("/api/billing/stripe/session/cs_test_1").json()
+    again = client.get("/api/billing/stripe/session/cs_test_1").json()
+
+    assert first == {
         "status": "ok",
         "email": "buyer@example.com",
-        "tier": "advanced",
-        "plan": "annual",
-        "license_key": "key",
+        "tier": "pro",
+        "plan": "monthly",
+        "license_key": "key-1",
         "workspace_upgraded": False,
     }
-    assert braintree_stub.customer_params == {
-        "email": "buyer@example.com",
-        "payment_method_nonce": "nonce",
-        "credit_card": {"options": {"verify_card": True}},
-        "device_data": "dd",
-    }
-    assert braintree_stub.subscription_params == {"payment_method_token": "pm1", "plan_id": "adv-a"}
-    assert braintree_stub.issued == [("sub1@2026-10-25", "advanced", "annual")]
+    assert again == first
+    assert stripe_stub.issued == [(f"sub1@{PERIOD_END}", "pro", "monthly")]
 
 
-def test_subscribe_without_email_uses_the_braintree_licensee(client, braintree_stub):
-    body = {"interval": "monthly", "tier": "pro", "payment_method_nonce": "nonce"}
+def test_session_must_be_paid(client, stripe_stub):
+    stripe_stub.sessions["cs_test_1"] = _session(status="open", payment_status="unpaid")
 
-    response = client.post("/api/billing/braintree/subscribe", json=body)
+    response = client.get("/api/billing/stripe/session/cs_test_1")
 
-    assert response.json()["status"] == "ok"
-    assert response.json()["email"] == "buyer@example.com"
-    assert "email" not in braintree_stub.customer_params
+    assert response.status_code == 409
+    assert stripe_stub.issued == []
+
+
+def test_session_not_found(client, stripe_stub):
+    assert client.get("/api/billing/stripe/session/cs_test_missing").status_code == 404
+
+
+def test_session_id_must_look_like_one(client, stripe_stub):
+    assert client.get("/api/billing/stripe/session/not-a-session").status_code == 422
 
 
 def test_issue_and_deliver_only_emails_real_addresses(monkeypatch, tmp_path):
@@ -158,116 +211,129 @@ def test_issue_and_deliver_only_emails_real_addresses(monkeypatch, tmp_path):
     monkeypatch.setattr(billing, "issue_license", lambda email, **kw: f"key-for-{email}")
     monkeypatch.setattr(billing, "send_license_email", lambda email, key, interval: sent.append(email) or True)
 
-    billing._issue_and_deliver("Jane Doe", "monthly", "pro", "sub1@a")
+    billing._issue_and_deliver("Stripe customer cus_1", "monthly", "pro", "sub1@a")
     billing._issue_and_deliver("jane@example.com", "monthly", "pro", "sub1@b")
 
     assert sent == ["jane@example.com"]
-    assert "key-for-Jane Doe" in (tmp_path / "issued.jsonl").read_text()
+    assert "key-for-Stripe customer cus_1" in (tmp_path / "issued.jsonl").read_text()
 
 
-def test_subscribe_requires_plan(client, monkeypatch, braintree_stub):
-    monkeypatch.setattr(billing, "BRAINTREE_PLAN_PRO_MONTHLY", "")
-
-    assert _checkout(client).status_code == 503
-
-
-def test_subscribe_reports_declined_card(client, braintree_stub):
-    braintree_stub.customer_result = _result(
-        False, message="Do Not Honor", credit_card_verification=SimpleNamespace(status="processor_declined")
-    )
-
-    response = _checkout(client)
-
-    assert response.status_code == 402
-    assert response.json()["detail"] == "Your card was declined. Please try a different card."
-    assert braintree_stub.subscription_params is None
-    assert braintree_stub.issued == []
-
-
-def test_subscribe_reports_failed_subscription(client, braintree_stub):
-    braintree_stub.subscription_result = _result(False, message="Insufficient Funds", credit_card_verification=None)
-
-    response = _checkout(client)
-
-    assert response.status_code == 402
-    assert response.json()["detail"] == "Insufficient Funds"
-    assert braintree_stub.issued == []
-
-
-def test_subscribe_rejects_bad_email(client, braintree_stub):
-    assert _checkout(client, email="not-an-email").status_code == 422
-
-
-def test_fulfil_rejects_unknown_plan(braintree_stub):
+def test_fulfil_rejects_unknown_plan(stripe_stub):
     with pytest.raises(HTTPException) as exc:
-        billing._fulfil(_subscription(plan_id="someone-else"))
+        billing._fulfil(_subscription(tier="gold"), "buyer@example.com")
     assert exc.value.status_code == 400
-    assert braintree_stub.issued == []
+    assert stripe_stub.issued == []
 
 
-def test_fulfil_waits_for_active_status(braintree_stub):
+def test_fulfil_waits_for_active_status(stripe_stub):
     with pytest.raises(HTTPException) as exc:
-        billing._fulfil(_subscription(status="Pending"))
+        billing._fulfil(_subscription(status="incomplete"), "buyer@example.com")
     assert exc.value.status_code == 409
 
 
-def test_checkout_then_first_charge_webhook_issue_one_key(client, monkeypatch, braintree_stub):
-    monkeypatch.setattr(billing, "_get_subscription", lambda sub_id: _subscription(sub_id))
-
-    checkout = _checkout(client)
-    charged = _webhook(client, monkeypatch, Kind.SubscriptionChargedSuccessfully)
-
-    assert checkout.json()["status"] == "ok"
-    assert charged.json() == {"status": "duplicate"}
-    assert len(braintree_stub.issued) == 1
+def test_period_end_reads_old_and_new_api_shapes():
+    assert billing._period_end({"items": {"data": [{"current_period_end": 5}]}}) == 5
+    assert billing._period_end({"items": {"data": []}, "current_period_end": 7}) == 7
 
 
-def test_webhook_renewal_issues_a_fresh_key(client, monkeypatch, braintree_stub):
-    monkeypatch.setattr(billing, "_get_subscription", lambda sub_id: _subscription(sub_id, paid_through=date(2026, 10, 25)))
-    _webhook(client, monkeypatch, Kind.SubscriptionChargedSuccessfully)
-    monkeypatch.setattr(billing, "_get_subscription", lambda sub_id: _subscription(sub_id, paid_through=date(2026, 11, 25)))
-    renewal = _webhook(client, monkeypatch, Kind.SubscriptionChargedSuccessfully)
+def test_invoice_subscription_id_reads_old_and_new_api_shapes():
+    assert billing._invoice_subscription_id({"parent": {"subscription_details": {"subscription": "sub_new"}}}) == "sub_new"
+    assert billing._invoice_subscription_id({"subscription": "sub_old"}) == "sub_old"
+    assert billing._invoice_subscription_id({}) is None
+
+
+def test_return_from_checkout_then_first_invoice_webhook_issue_one_key(client, monkeypatch, stripe_stub):
+    stripe_stub.sessions["cs_test_1"] = _session()
+    stripe_stub.subscriptions["sub1"] = _subscription()
+
+    returned = client.get("/api/billing/stripe/session/cs_test_1")
+    paid = _webhook(client, monkeypatch, "invoice.paid", {"subscription": "sub1", "customer_email": "buyer@example.com"})
+
+    assert returned.json()["status"] == "ok"
+    assert paid.json() == {"status": "duplicate"}
+    assert len(stripe_stub.issued) == 1
+
+
+def test_webhook_checkout_completed_is_a_fallback(client, monkeypatch, stripe_stub):
+    stripe_stub.sessions["cs_test_1"] = _session()
+
+    response = _webhook(client, monkeypatch, "checkout.session.completed", {"id": "cs_test_1", "mode": "subscription"})
+
+    assert response.json() == {"status": "ok"}
+    assert len(stripe_stub.issued) == 1
+
+
+def test_webhook_renewal_issues_a_fresh_key(client, monkeypatch, stripe_stub):
+    invoice = {"parent": {"subscription_details": {"subscription": "sub1"}}, "customer_email": "buyer@example.com"}
+    stripe_stub.subscriptions["sub1"] = _subscription(period_end=PERIOD_END)
+    _webhook(client, monkeypatch, "invoice.paid", invoice)
+    stripe_stub.subscriptions["sub1"] = _subscription(period_end=PERIOD_END + 2_592_000)
+    renewal = _webhook(client, monkeypatch, "invoice.paid", invoice)
 
     assert renewal.json() == {"status": "ok"}
-    assert [tx for tx, _, _ in braintree_stub.issued] == ["sub1@2026-10-25", "sub1@2026-11-25"]
+    assert [tx for tx, _, _ in stripe_stub.issued] == [f"sub1@{PERIOD_END}", f"sub1@{PERIOD_END + 2_592_000}"]
 
 
-def test_webhook_rejects_bad_signature(client, monkeypatch, braintree_stub):
-    def bad(signature, payload):
-        raise HTTPException(status_code=400, detail="Invalid Braintree webhook signature.")
+def test_webhook_acknowledges_unusable_subscription(client, monkeypatch, stripe_stub):
+    stripe_stub.subscriptions["sub1"] = _subscription(status="past_due")
 
-    monkeypatch.setattr(billing, "_parse_webhook", bad)
+    response = _webhook(client, monkeypatch, "invoice.paid", {"subscription": "sub1"})
 
-    response = client.post("/api/billing/braintree/webhook", data={"bt_signature": "sig", "bt_payload": "payload"})
-
-    assert response.status_code == 400
-    assert braintree_stub.issued == []
+    assert response.json() == {"status": "rejected"}
+    assert stripe_stub.issued == []
 
 
-def test_webhook_requires_form_fields(client, braintree_stub):
-    assert client.post("/api/billing/braintree/webhook", data={}).status_code == 400
-
-
-def test_webhook_ignores_other_events(client, monkeypatch, braintree_stub):
-    response = _webhook(client, monkeypatch, Kind.SubscriptionWentPastDue)
+def test_webhook_ignores_other_events(client, monkeypatch, stripe_stub):
+    response = _webhook(client, monkeypatch, "invoice.payment_failed", {"subscription": "sub1"})
 
     assert response.json() == {"status": "ignored"}
-    assert braintree_stub.issued == []
+    assert stripe_stub.issued == []
 
 
-def test_webhook_acknowledges_unusable_subscription(client, monkeypatch, braintree_stub):
-    monkeypatch.setattr(billing, "_get_subscription", lambda sub_id: _subscription(sub_id, status="Past Due"))
-
-    assert _webhook(client, monkeypatch, Kind.SubscriptionWentActive).json() == {"status": "rejected"}
+def test_webhook_requires_signature_header(client, stripe_stub):
+    assert client.post("/api/billing/stripe/webhook", content=b"{}").status_code == 400
 
 
-def test_webhook_signature_is_checked_by_braintree(monkeypatch):
-    """The real parser, with a real sandbox-style config, rejects forged payloads."""
-    monkeypatch.setattr(billing, "BRAINTREE_MERCHANT_ID", "merchant")
-    monkeypatch.setattr(billing, "BRAINTREE_PUBLIC_KEY", "public")
-    monkeypatch.setattr(billing, "BRAINTREE_PRIVATE_KEY", "private")
-    monkeypatch.setattr(billing, "BRAINTREE_ENVIRONMENT", "sandbox")
+def test_webhook_unavailable_without_secret(monkeypatch):
+    monkeypatch.setattr(billing, "STRIPE_WEBHOOK_SECRET", "")
 
     with pytest.raises(HTTPException) as exc:
-        billing._parse_webhook("public|forged", "cGF5bG9hZA==")
+        billing._parse_webhook(b"{}", "t=1,v1=abc")
+    assert exc.value.status_code == 503
+
+
+def test_webhook_signature_is_checked_by_stripe(monkeypatch):
+    """The real parser accepts a correctly signed event and rejects a forged one."""
+    secret = "whsec_test"
+    monkeypatch.setattr(billing, "STRIPE_WEBHOOK_SECRET", secret)
+    payload = json.dumps({"id": "evt_1", "object": "event", "type": "invoice.paid", "data": {"object": {}}})
+    timestamp = int(time.time())
+    signature = stripe.WebhookSignature._compute_signature(f"{timestamp}.{payload}", secret)
+
+    event = billing._parse_webhook(payload.encode(), f"t={timestamp},v1={signature}")
+    assert event["type"] == "invoice.paid"
+
+    with pytest.raises(HTTPException) as exc:
+        billing._parse_webhook(payload.encode(), f"t={timestamp},v1=forged")
     assert exc.value.status_code == 400
+
+
+def test_cancel_stops_renewal_at_period_end(stripe_stub):
+    stripe_stub.subscriptions["sub1"] = _subscription()
+
+    billing.cancel_at_stripe("sub1")
+
+    assert stripe_stub.modified == [("sub1", {"cancel_at_period_end": True})]
+    assert stripe_stub.cancelled == []
+
+
+def test_cancel_immediately(stripe_stub):
+    stripe_stub.subscriptions["sub1"] = _subscription()
+
+    billing.cancel_at_stripe("sub1", immediately=True)
+
+    assert stripe_stub.cancelled == ["sub1"]
+
+
+def test_cancel_of_a_subscription_stripe_no_longer_has(stripe_stub):
+    assert billing.cancel_at_stripe("sub_gone") is None

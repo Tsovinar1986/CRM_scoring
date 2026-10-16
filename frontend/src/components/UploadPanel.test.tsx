@@ -3,8 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UploadPanel } from "./UploadPanel";
 import * as api from "../api";
-import * as braintree from "../braintree";
-import { configured, fakeDropin } from "../test/braintreeFixtures";
+import { configured } from "../test/billingFixtures";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
@@ -12,12 +11,9 @@ vi.mock("../api", async (importActual) => {
     ...actual,
     uploadLeads: vi.fn(),
     fetchBillingConfig: vi.fn(),
-    fetchBraintreeClientToken: vi.fn(),
-    subscribeWithBraintree: vi.fn(),
+    startStripeCheckout: vi.fn(),
   };
 });
-
-vi.mock("../braintree", () => ({ loadDropin: vi.fn() }));
 
 function selectFile() {
   const file = new File(["company_name,domain\nAcme,acme.com"], "leads.csv", { type: "text/csv" });
@@ -28,7 +24,7 @@ function selectFile() {
 describe("UploadPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "sandbox", checkout_available: false });
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "test", checkout_available: false });
   });
 
   it("calls onUploaded with the scored leads on success", async () => {
@@ -73,22 +69,22 @@ describe("UploadPanel", () => {
     expect(screen.queryByText("No valid license found.")).not.toBeInTheDocument();
   });
 
-  it("opens card checkout for the Pro annual plan on the license-expired CTA", async () => {
+  it("opens Stripe checkout for the Pro annual plan on the license-expired CTA", async () => {
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    vi.mocked(api.fetchBraintreeClientToken).mockResolvedValue("client-token");
     vi.mocked(api.uploadLeads).mockRejectedValue(new api.LicenseRequiredError("No valid license found."));
-    vi.mocked(braintree.loadDropin).mockResolvedValue(fakeDropin().namespace);
-    vi.mocked(api.subscribeWithBraintree).mockResolvedValue({ status: "duplicate" });
+    vi.mocked(api.startStripeCheckout).mockResolvedValue({ url: "https://checkout.stripe.com/c/pay/cs_test_1" });
+    const assign = vi.fn();
+    vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign });
 
     render(<UploadPanel onUploaded={vi.fn()} />);
     await selectFile();
 
     await userEvent.click(await screen.findByRole("button", { name: /buy annual/i }));
-    const pay = await screen.findByRole("button", { name: /subscribe — \$192\/year/i });
-    await waitFor(() => expect(pay).toBeEnabled());
-    await userEvent.click(pay);
+    expect(await screen.findByText(/pro — \$192\/year/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /continue to secure checkout/i }));
 
-    expect(api.subscribeWithBraintree).toHaveBeenCalledWith(expect.objectContaining({ tier: "pro", interval: "annual" }));
-    expect(await screen.findByText(/email hello@crmscoring.com for your license key/i)).toBeInTheDocument();
+    expect(api.startStripeCheckout).toHaveBeenCalledWith("pro", "annual");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_test_1"));
+    vi.restoreAllMocks();
   });
 });

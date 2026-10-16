@@ -4,12 +4,12 @@ import {
   TenantAuthError,
   clearTenantApiKey,
   fetchBillingConfig,
-  fetchBraintreeClientToken,
+  confirmStripeCheckout,
   fetchLicenseStatus,
   startFreeTrial,
   fetchLeads,
   setTenantApiKey,
-  subscribeWithBraintree,
+  startStripeCheckout,
   uploadLeads,
 } from "./api";
 
@@ -127,35 +127,35 @@ describe("fetchBillingConfig", () => {
   });
 });
 
-describe("fetchBraintreeClientToken", () => {
-  it("gets /billing/braintree/client-token and returns the token", async () => {
-    mockFetchOnce(200, { client_token: "tok" });
+describe("startStripeCheckout", () => {
+  it("posts the plan to /billing/stripe/checkout and returns Stripe's URL", async () => {
+    mockFetchOnce(200, { url: "https://checkout.stripe.com/c/pay/cs_test_1", session_id: "cs_test_1" });
 
-    await expect(fetchBraintreeClientToken()).resolves.toBe("tok");
+    await expect(startStripeCheckout("pro", "annual")).resolves.toMatchObject({
+      url: "https://checkout.stripe.com/c/pay/cs_test_1",
+    });
 
-    const [url] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/billing/braintree/client-token");
+    const [url, options] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/billing/stripe/checkout");
+    expect(options?.method).toBe("POST");
+    expect(JSON.parse(options?.body as string)).toEqual({ tier: "pro", interval: "annual", source: "app" });
   });
 });
 
-describe("subscribeWithBraintree", () => {
-  const request = { tier: "pro" as const, interval: "annual" as const, email: "b@example.com", payment_method_nonce: "n1" };
-
-  it("posts the nonce and plan to /billing/braintree/subscribe and returns the result", async () => {
+describe("confirmStripeCheckout", () => {
+  it("gets /billing/stripe/session/<id> and returns the result", async () => {
     mockFetchOnce(200, { status: "duplicate" });
 
-    await expect(subscribeWithBraintree(request)).resolves.toEqual({ status: "duplicate" });
+    await expect(confirmStripeCheckout("cs_test_1")).resolves.toEqual({ status: "duplicate" });
 
-    const [url, options] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/billing/braintree/subscribe");
-    expect(options?.method).toBe("POST");
-    expect(JSON.parse(options?.body as string)).toEqual(request);
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/billing/stripe/session/cs_test_1");
   });
 
-  it("surfaces a declined card's message", async () => {
-    mockFetchOnce(402, { detail: "Your card was declined. Please try a different card." });
+  it("surfaces an unpaid session's message", async () => {
+    mockFetchOnce(409, { detail: "This payment isn't complete yet." });
 
-    await expect(subscribeWithBraintree(request)).rejects.toThrow("Your card was declined");
+    await expect(confirmStripeCheckout("cs_test_1")).rejects.toThrow("This payment isn't complete yet.");
   });
 });
 

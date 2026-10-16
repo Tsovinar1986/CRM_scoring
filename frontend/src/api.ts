@@ -1,9 +1,10 @@
 import type {
   Account,
   BillingConfig,
+  BillingInterval,
   LicenseStatus,
+  PaidTier,
   ScoredLead,
-  SubscribeRequest,
   SubscriptionActivation,
   TenantAuth,
 } from "./types";
@@ -123,23 +124,22 @@ export async function fetchBillingConfig(): Promise<BillingConfig> {
   return handle(res);
 }
 
-// Short-lived token Braintree's Drop-in needs to tokenize the buyer's card.
-export async function fetchBraintreeClientToken(): Promise<string> {
-  const res = await fetch(`${BASE}/billing/braintree/client-token`);
-  const body = await handle<{ client_token: string }>(res);
-  return body.client_token;
-}
-
-// Sends the tokenized card (never the card number itself) to start the
-// subscription. Returns the license key; "duplicate" means a webhook got
-// there first and the key arrives by email instead.
-export async function subscribeWithBraintree(request: SubscribeRequest): Promise<SubscriptionActivation> {
-  // The workspace header lets the hosted deployment upgrade that workspace.
-  const res = await fetch(`${BASE}/billing/braintree/subscribe`, {
+// Starts a Stripe Checkout for the plan and returns the URL of Stripe's
+// payment page. The workspace header lets the hosted deployment upgrade that
+// workspace once it's paid.
+export async function startStripeCheckout(tier: PaidTier, interval: BillingInterval): Promise<{ url: string }> {
+  const res = await fetch(`${BASE}/billing/stripe/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(request),
+    body: JSON.stringify({ tier, interval, source: "app" }),
   });
+  return handle(res);
+}
+
+// Called on return from Stripe (?checkout=<session id>): confirms the payment
+// and returns the license key, or that the workspace was upgraded.
+export async function confirmStripeCheckout(sessionId: string): Promise<SubscriptionActivation> {
+  const res = await fetch(`${BASE}/billing/stripe/session/${encodeURIComponent(sessionId)}`);
   return handle(res);
 }
 

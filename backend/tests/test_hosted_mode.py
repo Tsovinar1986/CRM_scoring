@@ -2,7 +2,6 @@
 
 from types import SimpleNamespace
 
-import braintree
 import pytest
 
 from app import config, storage
@@ -97,33 +96,45 @@ def test_trial_creation_is_rate_limited(client, hosted, monkeypatch):
 def test_subscribing_upgrades_the_workspace_and_cancelling_downgrades_it(client, hosted, monkeypatch, tmp_path):
     headers = _trial(client)
     tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
-    subscription = SimpleNamespace(
-        id="sub9", status="Active", plan_id="adv-m", paid_through_date="2026-10-25", payment_method_token="pm"
-    )
-    gateway = SimpleNamespace(
-        customer=SimpleNamespace(create=lambda params: SimpleNamespace(
-            is_success=True, customer=SimpleNamespace(payment_methods=[SimpleNamespace(token="pm")]))),
-        subscription=SimpleNamespace(create=lambda params: SimpleNamespace(is_success=True, subscription=subscription)),
-    )
-    monkeypatch.setattr(billing, "_gateway", lambda: gateway)
-    monkeypatch.setattr(billing, "BRAINTREE_PLAN_ADVANCED_MONTHLY", "adv-m")
+    sessions = []
+
+    def create_session(**params):
+        sessions.append(params)
+        return {"id": "cs_test_9", "url": "https://checkout.stripe.com/c/pay/cs_test_9"}
+
+    def retrieve_session(session_id, expand=None):
+        metadata = sessions[0]["subscription_data"]["metadata"]
+        subscription = {
+            "id": "sub9",
+            "status": "active",
+            "metadata": metadata,
+            "items": {"data": [{"current_period_end": 1_790_000_000}]},
+            "customer": {"id": "cus_9", "email": None},
+        }
+        return {"id": session_id, "mode": "subscription", "status": "complete", "payment_status": "paid",
+                "customer_details": {"email": "jane@example.com"}, "subscription": subscription}
+
+    fake = SimpleNamespace(checkout=SimpleNamespace(Session=SimpleNamespace(create=create_session, retrieve=retrieve_session)))
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    monkeypatch.setattr(billing, "_api", lambda: fake)
+    monkeypatch.setattr(billing, "_price_id", lambda tier, interval: "price_adv_m")
     monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", tmp_path / "issued.jsonl")
     monkeypatch.setattr(billing, "_issue_and_deliver", lambda *args: "key")
-    monkeypatch.setattr(billing, "_licensee", lambda sub: "Jane Doe")
 
-    response = client.post(
-        "/api/billing/braintree/subscribe",
-        headers=headers,
-        json={"tier": "advanced", "interval": "monthly", "payment_method_nonce": "n"},
-    )
+    started = client.post("/api/billing/stripe/checkout", headers=headers, json={"tier": "advanced", "interval": "monthly"})
+    assert started.json()["url"].startswith("https://checkout.stripe.com/")
+    assert sessions[0]["metadata"]["tenant_id"] == tenant.id
+    # Not upgraded until Stripe says it's paid.
+    assert client.get("/api/license", headers=headers).json()["tier"] == "starter"
 
-    assert response.json()["workspace_upgraded"] is True
+    returned = client.get("/api/billing/stripe/session/cs_test_9")
+
+    assert returned.json()["workspace_upgraded"] is True
     assert client.get("/api/license", headers=headers).json()["tier"] == "advanced"
 
-    notification = SimpleNamespace(kind=braintree.WebhookNotification.Kind.SubscriptionCanceled,
-                                   subscription=SimpleNamespace(id="sub9"))
-    monkeypatch.setattr(billing, "_parse_webhook", lambda signature, payload: notification)
-    client.post("/api/billing/braintree/webhook", data={"bt_signature": "s", "bt_payload": "p"})
+    monkeypatch.setattr(billing, "_parse_webhook", lambda payload, signature: {
+        "type": "customer.subscription.deleted", "data": {"object": {"id": "sub9"}}})
+    client.post("/api/billing/stripe/webhook", content=b"{}", headers={"stripe-signature": "s"})
 
     assert storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer ")).plan == "starter"
     assert tenant.plan == "starter"
@@ -148,15 +159,19 @@ def test_self_hosted_install_is_unchanged(client):
 
 
 def _subscribed_workspace(client, monkeypatch, tmp_path, cancel_calls, paid_through):
+    from datetime import datetime, timezone
+
     headers = _trial(client)
     tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
     storage.set_tenant_subscription(tenant.id, "pro", "sub7")
-    subscription = SimpleNamespace(id="sub7", status="Active", paid_through_date=paid_through)
-    gateway = SimpleNamespace(subscription=SimpleNamespace(
-        find=lambda sub_id: subscription,
-        cancel=lambda sub_id: cancel_calls.append(sub_id) or SimpleNamespace(is_success=True),
+    period_end = int(datetime.combine(paid_through, datetime.min.time(), tzinfo=timezone.utc).timestamp())
+    subscription = {"id": "sub7", "status": "active", "items": {"data": [{"current_period_end": period_end}]}}
+    fake = SimpleNamespace(Subscription=SimpleNamespace(
+        retrieve=lambda sub_id: subscription,
+        modify=lambda sub_id, **params: cancel_calls.append(sub_id) or {**subscription, **params},
     ))
-    monkeypatch.setattr(billing, "_gateway", lambda: gateway)
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    monkeypatch.setattr(billing, "_api", lambda: fake)
     return headers
 
 

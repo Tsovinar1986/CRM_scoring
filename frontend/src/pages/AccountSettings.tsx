@@ -248,7 +248,7 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
               </Row>
             )}
             <Row label="Billing">
-              {account.has_subscription ? "Renews automatically, card checkout by Braintree" : "No active subscription"}
+              {account.has_subscription ? "Renews automatically, card checkout by Stripe" : "No active subscription"}
             </Row>
           </dl>
           <div className="mt-4 flex flex-wrap gap-2">

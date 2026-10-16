@@ -39,16 +39,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            # Braintree Drop-in (in-page card checkout) loads its script from
-            # js.braintreegateway.com, renders the card fields in iframes from
-            # assets.braintreegateway.com, and tokenizes via Braintree's APIs.
-            "script-src 'self' https://js.braintreegateway.com https://assets.braintreegateway.com; "
+            # Payment happens on Stripe's own checkout page (a full-page
+            # redirect), so the app itself loads nothing from third parties.
+            "script-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https://assets.braintreegateway.com; "
-            "connect-src 'self' https://api.braintreegateway.com https://api.sandbox.braintreegateway.com "
-            "https://client-analytics.braintreegateway.com https://client-analytics.sandbox.braintreegateway.com "
-            "https://payments.braintree-api.com https://payments.sandbox.braintree-api.com; "
-            "frame-src https://assets.braintreegateway.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self'; "
             "object-src 'none'; "
             "base-uri 'self'"
         )

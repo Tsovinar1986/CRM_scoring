@@ -309,7 +309,7 @@
         <button type="button" class="toggle-btn" id="toggle-annual" onclick="selectInterval('annual')">Yearly <span class="save-chip">Save 20%</span></button>
       </div>
 
-      <!-- Three real tiers. Starter has no Braintree plan at all -- it's the
+      <!-- Three real tiers. Starter has no Stripe price at all -- it's the
            unlicensed default (app/licensing.py), permanently capped at
            TRIAL_MAX_UPLOADS/TRIAL_MAX_LEADS_PER_UPLOAD. Pro and Advanced are
            functionally identical (no extra caps/features on Advanced yet) --
@@ -370,18 +370,9 @@
           <h3 id="checkout-title">Subscribe</h3>
           <button type="button" class="link-btn" id="checkout-cancel" onclick="closeCheckout()">Cancel</button>
         </div>
-        <p class="fine" id="checkout-fine">Billed by card through Braintree. Cancel anytime by emailing hello@crmscoring.com.</p>
-        <form id="checkout-form" onsubmit="return pay(event)">
-          <p id="checkout-loading" class="fine">Loading secure checkout…</p>
-          <div id="dropin"></div>
-          <p id="checkout-form-error" class="error" hidden></p>
-          <button type="submit" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" disabled>Subscribe</button>
-        </form>
-        <div id="checkout-done" hidden>
-          <p style="color: var(--text-h); margin: 0;">You're subscribed! Your license key:</p>
-          <code class="key" id="done-key"></code>
-          <p class="fine">Set it as <code>LICENSE_KEY</code> in your <code>.env</code> and restart. Save it somewhere safe — you'll need a new key each billing period; email hello@crmscoring.com for it.</p>
-        </div>
+        <p class="fine" id="checkout-fine">Billed by card through Stripe. You'll enter your card on Stripe's secure checkout page; your license key is shown and emailed right after.</p>
+        <p id="checkout-form-error" class="error" hidden></p>
+        <button type="button" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" onclick="pay()">Continue to secure checkout</button>
       </div>
     </div>
   </section>
@@ -407,11 +398,10 @@
       document.getElementById("toggle-annual").classList.toggle("active", interval === "annual");
       ["pro", "advanced"].forEach(function (tier) { var el = document.getElementById("price-" + tier); el.textContent = interval === "annual" ? (tier === "pro" ? "$192" : "$384") : (tier === "pro" ? "$20" : "$40"); });
     }
-    // In-page card checkout with Braintree Drop-in: the card is tokenized in
-    // Braintree's own iframes and only a one-time nonce reaches our backend.
-    var DROPIN_SRC = "https://js.braintreegateway.com/web/dropin/1.48.0/js/dropin.min.js";
+    // Checkout happens on Stripe's own page; Stripe sends the buyer back to
+    // thank-you.html?session_id=..., which shows the license key.
     var PRICES = { pro: { monthly: "$20/month", annual: "$192/year" }, advanced: { monthly: "$40/month", annual: "$384/year" } };
-    var dropinScript = null, dropinInstance = null, checkoutPlan = null;
+    var checkoutPlan = null;
     function $(id) { return document.getElementById(id); }
     function api(path, options) {
       return fetch(API_BASE + path, options).then(function (res) {
@@ -421,24 +411,7 @@
         });
       });
     }
-    function loadDropin() {
-      if (!dropinScript) {
-        dropinScript = new Promise(function (resolve, reject) {
-          var script = document.createElement("script");
-          script.src = DROPIN_SRC;
-          script.onload = function () { window.braintree && window.braintree.dropin ? resolve(window.braintree.dropin) : reject(new Error("The payment form failed to load.")); };
-          script.onerror = function () { dropinScript = null; reject(new Error("Couldn't load the payment form. Check your connection or ad blocker.")); };
-          document.head.appendChild(script);
-        });
-      }
-      return dropinScript;
-    }
     function formError(msg) { var el = $("checkout-form-error"); el.textContent = msg || ""; el.hidden = !msg; }
-    function teardown() {
-      var instance = dropinInstance; dropinInstance = null;
-      $("dropin").innerHTML = "";
-      return instance ? instance.teardown().catch(function () {}) : Promise.resolve();
-    }
     // "Get started free": creates a private trial workspace on the hosted app
     // and opens it; the app picks the key up from #workspace=... .
     var APP_URL = API_BASE.replace(/\/api$/, "/");
@@ -487,69 +460,35 @@
         $("trial-error").hidden = false;
       });
     }
-    function closeCheckout() { teardown(); $("checkout").hidden = true; checkoutPlan = null; }
+    function closeCheckout() { $("checkout").hidden = true; checkoutPlan = null; }
     function buyPlan(tier) {
       clearError();
       closeTrial();
-      var plan = { tier: tier, interval: currentInterval };
-      checkoutPlan = plan;
+      checkoutPlan = { tier: tier, interval: currentInterval };
       $("checkout").hidden = false;
-      $("checkout-form").hidden = false;
-      $("checkout-done").hidden = true;
-      $("checkout-cancel").textContent = "Cancel";
+      $("checkout-cancel").hidden = false;
       $("checkout-title").textContent = (tier === "pro" ? "Pro" : "Advanced") + " — " + PRICES[tier][currentInterval];
-      $("checkout-pay").textContent = "Subscribe — " + PRICES[tier][currentInterval];
-      $("checkout-pay").disabled = true;
-      $("checkout-loading").hidden = false;
+      $("checkout-pay").disabled = false;
+      $("checkout-pay").textContent = "Continue to secure checkout";
       formError("");
       $("checkout").scrollIntoView({ behavior: "smooth", block: "center" });
-      teardown().then(function () {
-        return Promise.all([loadDropin(), api("/billing/config"), api("/billing/braintree/client-token")]);
-      }).then(function (r) {
-        if (checkoutPlan !== plan) return;
-        if (!r[1].checkout_available) throw new Error("Checkout isn't available right now. Email hello@crmscoring.com and we'll set you up.");
-        return r[0].create({ authorization: r[2].client_token, container: $("dropin"), card: { cardholderName: { required: true } }, dataCollector: true })
-          .then(function (instance) {
-            if (checkoutPlan !== plan) { instance.teardown().catch(function () {}); return; }
-            dropinInstance = instance;
-            $("checkout-loading").hidden = true;
-            $("checkout-pay").disabled = false;
-          });
-      }).catch(function (err) {
-        if (checkoutPlan !== plan) return;
-        $("checkout-loading").hidden = true;
-        formError(err.message || "Couldn't load checkout.");
-      });
     }
-    function pay(event) {
-      event.preventDefault();
-      if (!dropinInstance || !checkoutPlan) return false;
-      var plan = checkoutPlan;
+    function pay() {
+      if (!checkoutPlan) return;
       formError("");
-      dropinInstance.requestPaymentMethod().then(function (method) {
-        $("checkout-pay").disabled = true;
-        $("checkout-pay").textContent = "Processing…";
-        $("checkout-cancel").hidden = true;
-        return api("/billing/braintree/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tier: plan.tier, interval: plan.interval, payment_method_nonce: method.nonce, device_data: method.deviceData })
-        }).then(function (result) {
-          teardown();
-          $("checkout-form").hidden = true;
-          $("checkout-done").hidden = false;
-          $("checkout-cancel").hidden = false;
-          $("checkout-cancel").textContent = "Close";
-          if (result.license_key) { $("done-key").textContent = result.license_key; $("done-key").hidden = false; }
-          else { $("done-key").hidden = true; $("done-key").previousElementSibling.textContent = "You're subscribed! Email hello@crmscoring.com for your license key."; }
-        }, function (err) {
-          $("checkout-cancel").hidden = false;
-          $("checkout-pay").disabled = false;
-          $("checkout-pay").textContent = "Subscribe — " + PRICES[plan.tier][plan.interval];
-          formError(err.message);
-        });
-      }, function () { formError("Please complete your card details."); });
-      return false;
+      $("checkout-pay").disabled = true;
+      $("checkout-pay").textContent = "Opening secure checkout…";
+      api("/billing/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: checkoutPlan.tier, interval: checkoutPlan.interval, source: "site" })
+      }).then(function (result) {
+        window.location.href = result.url;
+      }, function (err) {
+        $("checkout-pay").disabled = false;
+        $("checkout-pay").textContent = "Continue to secure checkout";
+        formError(err.message);
+      });
     }
     selectInterval("monthly");
   </script>

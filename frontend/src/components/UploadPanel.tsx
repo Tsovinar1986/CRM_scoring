@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { LicenseRequiredError, TenantAuthError, fetchBillingConfig, uploadLeads } from "../api";
 import type { BillingConfig, BillingInterval, ScoredLead } from "../types";
 import { isNativeApp } from "../nativeApp";
-import { BraintreeSubscribe } from "./BraintreeSubscribe";
+import { StripeSubscribe } from "./StripeSubscribe";
 
 interface Props {
   onUploaded: (leads: ScoredLead[]) => void;
@@ -47,7 +47,7 @@ export function UploadPanel({ onUploaded }: Props) {
   useEffect(() => {
     fetchBillingConfig()
       .then(setBilling)
-      .catch(() => setBilling({ checkout_available: false, environment: "sandbox" }));
+      .catch(() => setBilling({ checkout_available: false, environment: "test" }));
   }, []);
 
   async function handleFile(file: File) {
@@ -174,7 +174,7 @@ export function UploadPanel({ onUploaded }: Props) {
                 Buy annual (save 20%)
               </button>
               {buyInterval && billing && (
-                <BraintreeSubscribe
+                <StripeSubscribe
                   key={buyInterval}
                   config={billing}
                   tier="pro"

@@ -112,7 +112,7 @@ current without manual re-triggering.
 
 ## Selling this
 
-- **`licensing/`** — Braintree checkout + an offline-verifiable Ed25519 license
+- **`licensing/`** — Stripe checkout + an offline-verifiable Ed25519 license
   key, for selling this app directly as self-hosted software from your own
   site (`licensing/README.md`, which also has the go-to-market sequencing:
   direct sale → RapidAPI → Salesforce AppExchange →

@@ -4,6 +4,9 @@ import os
 # fixture. Set before app.config loads a developer's .env, which never
 # overrides a variable that's already set.
 os.environ["HOSTED_MODE"] = "false"
+# Never reach a real Stripe account from tests, whatever .env holds.
+os.environ["STRIPE_SECRET_KEY"] = ""
+os.environ["STRIPE_WEBHOOK_SECRET"] = ""
 
 import pytest  # noqa: E402
 

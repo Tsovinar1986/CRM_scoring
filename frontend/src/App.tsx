@@ -8,6 +8,7 @@ import {
   getTenantApiKey,
   setTenantApiKey,
 } from "./api";
+import { CheckoutReturn } from "./components/CheckoutReturn";
 import { GettingStarted } from "./components/GettingStarted";
 import { InstallAppButton } from "./components/InstallAppButton";
 import { Logo } from "./components/Logo";
@@ -160,6 +161,7 @@ function LeadScoringApp() {
 
         {/* Decides for itself whether to show (see LicenseBanner). Keyed on
             the workspace so it re-reads status after connect/disconnect. */}
+        <CheckoutReturn onDone={handleWorkspaceChange} />
         <div id="plans" className="animate-fade-in-up mb-5 scroll-mt-6 empty:hidden" style={{ animationDelay: "60ms" }}>
           <LicenseBanner key={workspaceGeneration} onWorkspaceChange={handleWorkspaceChange} />
         </div>

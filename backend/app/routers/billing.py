@@ -1,42 +1,36 @@
-"""Braintree subscriptions and license delivery for the seller storefront.
+"""Stripe subscriptions and license delivery for the seller storefront.
 
-Starter is free (no plan). Pro and Advanced each have a monthly and an annual
-Braintree plan (create them with backend/scripts/create_braintree_plans.py).
-Checkout happens in-page with Braintree's Drop-in card form: the browser gets
-a client token from /braintree/client-token, tokenizes the card, and posts the
-nonce to /braintree/subscribe, which creates the customer and subscription and
-returns the license key straight away. A fresh key is issued on every renewal
-(via the webhook), each one valid a little past the next billing date -- so a
-cancelled subscription simply stops getting fresh keys.
+Starter is free (no plan). Pro and Advanced each bill monthly or annually.
+Checkout happens on Stripe's own hosted page: POST /stripe/checkout creates a
+Checkout Session for the chosen plan and returns its URL; after paying, Stripe
+sends the buyer back -- to the app (/?checkout=<session id>) or the website's
+thank-you.html -- which calls GET /stripe/session/<id> to confirm the payment
+and get the license key. Card details never touch our servers. A fresh key is
+issued for every paid billing period (via the webhook), each one valid a
+little past the next billing date -- so a cancelled subscription simply stops
+getting fresh keys.
 """
 
 import json
 import sys
 import threading
 import time
-from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-import braintree
-from braintree.exceptions.braintree_error import BraintreeError
+import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import Path as PathParam
 from loguru import logger
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from .. import storage
 from ..auth import get_current_tenant, get_optional_tenant
 from ..config import (
+    APP_BASE_URL,
     BILLING_CURRENCY,
-    BRAINTREE_ENVIRONMENT,
-    BRAINTREE_MERCHANT_ID,
-    BRAINTREE_PLAN_ADVANCED_ANNUAL,
-    BRAINTREE_PLAN_ADVANCED_MONTHLY,
-    BRAINTREE_PLAN_PRO_ANNUAL,
-    BRAINTREE_PLAN_PRO_MONTHLY,
-    BRAINTREE_PRIVATE_KEY,
-    BRAINTREE_PUBLIC_KEY,
     HOSTED_MODE,
     LICENSE_PRIVATE_KEY,
     LICENSE_VALIDITY_DAYS_ANNUAL,
@@ -46,6 +40,9 @@ from ..config import (
     PRICE_PRO_ANNUAL,
     PRICE_PRO_MONTHLY,
     RATE_LIMIT_AUTH,
+    STOREFRONT_URL,
+    STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET,
 )
 from ..middleware import limiter
 from ..services.license_email import send_license_email
@@ -56,68 +53,97 @@ from issue_license import issue_license  # noqa: E402
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 _ISSUED_LICENSES_LOG = _LICENSING_DIR / "issued_licenses.jsonl"
-# The in-page checkout and the webhooks can both try to fulfil the same
-# billing period at nearly the same moment -- serialise the check-then-issue
-# so one payment never produces two keys.
+# The buyer's return from checkout and the webhooks can both try to fulfil
+# the same billing period at nearly the same moment -- serialise the
+# check-then-issue so one payment never produces two keys.
 _fulfil_lock = threading.Lock()
 
 Tier = Literal["pro", "advanced"]
 Interval = Literal["monthly", "annual"]
+_PRODUCT_NAMES = {"pro": "CRM Scoring Pro", "advanced": "CRM Scoring Advanced"}
+_STRIPE_INTERVALS = {"monthly": "month", "annual": "year"}
+# Stripe states in which a subscription grants its plan and earns keys.
+_ACTIVE = ("active", "trialing")
 
 
 def _configured() -> bool:
-    return bool(BRAINTREE_MERCHANT_ID and BRAINTREE_PUBLIC_KEY and BRAINTREE_PRIVATE_KEY)
+    return bool(STRIPE_SECRET_KEY)
 
 
-def _gateway() -> braintree.BraintreeGateway:
+def _api():
     if not _configured():
-        raise HTTPException(status_code=503, detail="Braintree isn't configured on this deployment.")
-    return braintree.BraintreeGateway(
-        braintree.Configuration(
-            environment=braintree.Environment.parse_environment(BRAINTREE_ENVIRONMENT),
-            merchant_id=BRAINTREE_MERCHANT_ID,
-            public_key=BRAINTREE_PUBLIC_KEY,
-            private_key=BRAINTREE_PRIVATE_KEY,
-        )
-    )
+        raise HTTPException(status_code=503, detail="Stripe isn't configured on this deployment.")
+    stripe.api_key = STRIPE_SECRET_KEY
+    return stripe
 
 
-def _plans() -> dict[tuple[str, str], str]:
+def _prices() -> dict[tuple[str, str], str]:
     return {
-        ("pro", "monthly"): BRAINTREE_PLAN_PRO_MONTHLY,
-        ("pro", "annual"): BRAINTREE_PLAN_PRO_ANNUAL,
-        ("advanced", "monthly"): BRAINTREE_PLAN_ADVANCED_MONTHLY,
-        ("advanced", "annual"): BRAINTREE_PLAN_ADVANCED_ANNUAL,
+        ("pro", "monthly"): PRICE_PRO_MONTHLY,
+        ("pro", "annual"): PRICE_PRO_ANNUAL,
+        ("advanced", "monthly"): PRICE_ADVANCED_MONTHLY,
+        ("advanced", "annual"): PRICE_ADVANCED_ANNUAL,
     }
 
 
-def _plan_for(tier: str, interval: str) -> str:
-    return _plans().get((tier, interval), "")
+def _amount_cents(tier: str, interval: str) -> int:
+    return int(Decimal(_prices()[(tier, interval)]) * 100)
 
 
-def _tier_for_plan(plan_id: str) -> tuple[str, str] | None:
-    """Map a Braintree plan id back to (tier, interval); None if it isn't ours."""
-    for key, value in _plans().items():
-        if value and value == plan_id:
-            return key
-    return None
+def _lookup_key(tier: str, interval: str) -> str:
+    # The amount is part of the key: Stripe prices can't be edited, so a new
+    # amount in config means a new price, while existing subscribers keep theirs.
+    return f"crm-scoring-{tier}-{interval}-{_amount_cents(tier, interval)}-{BILLING_CURRENCY.lower()}"
+
+
+_price_ids: dict[str, str] = {}
+_price_lock = threading.Lock()
+
+
+def _price_id(tier: str, interval: str) -> str:
+    """The Stripe price for a plan, created the first time the plan is sold."""
+    key = _lookup_key(tier, interval)
+    with _price_lock:
+        if key in _price_ids:
+            return _price_ids[key]
+        api = _api()
+        try:
+            found = api.Price.list(lookup_keys=[key], active=True, limit=1).data
+            if found:
+                price_id = found[0].id
+            else:
+                price_id = api.Price.create(
+                    currency=BILLING_CURRENCY.lower(),
+                    unit_amount=_amount_cents(tier, interval),
+                    recurring={"interval": _STRIPE_INTERVALS[interval]},
+                    lookup_key=key,
+                    product_data={"name": _PRODUCT_NAMES[tier]},
+                    metadata={"tier": tier, "interval": interval},
+                ).id
+                logger.info("Created Stripe price {} ({})", price_id, key)
+        except stripe.StripeError as exc:
+            logger.warning("Couldn't find or create the Stripe price {}: {!r}", key, exc)
+            raise HTTPException(status_code=502, detail="Couldn't connect to Stripe.")
+        _price_ids[key] = price_id
+        return price_id
 
 
 def _validity_days(interval: str) -> int:
     return LICENSE_VALIDITY_DAYS_ANNUAL if interval == "annual" else LICENSE_VALIDITY_DAYS_MONTHLY
 
 
-def _already_issued(transaction_id: str) -> bool:
+def _issued_record(transaction_id: str) -> dict | None:
     if not _ISSUED_LICENSES_LOG.exists():
-        return False
+        return None
     with _ISSUED_LICENSES_LOG.open() as log:
         for line in log:
             try:
-                if json.loads(line).get("transaction_id") == transaction_id:
-                    return True
+                record = json.loads(line)
             except json.JSONDecodeError:
                 continue
-    return False
+            if record.get("transaction_id") == transaction_id:
+                return record
+    return None
 
 
 def _issue_and_deliver(email: str, interval: str, tier: str, transaction_id: str) -> str:
@@ -145,8 +171,6 @@ def _issue_and_deliver(email: str, interval: str, tier: str, transaction_id: str
             )
             + "\n"
         )
-    # Checkout doesn't ask for an email, so the licensee may be a cardholder
-    # name or customer id -- those keys are only in the log above.
     emailed = "@" in email and send_license_email(email, license_key, interval)
     logger.info(
         "Issued license for {} ({}){}",
@@ -157,88 +181,126 @@ def _issue_and_deliver(email: str, interval: str, tier: str, transaction_id: str
     return license_key
 
 
+def _period_end(subscription) -> int | None:
+    """End of the subscription's current paid period, as epoch seconds. Newer
+    Stripe API versions keep it on the subscription item, older ones on the
+    subscription itself."""
+    for item in (subscription.get("items") or {}).get("data") or []:
+        if item.get("current_period_end"):
+            return int(item["current_period_end"])
+    end = subscription.get("current_period_end")
+    return int(end) if end else None
+
+
+def _plan_of(subscription) -> tuple[str, str] | None:
+    """(tier, interval) of one of our subscriptions; None if it isn't ours."""
+    sources = [subscription.get("metadata") or {}]
+    sources += [(item.get("price") or {}).get("metadata") or {} for item in (subscription.get("items") or {}).get("data") or []]
+    for metadata in sources:
+        plan = (metadata.get("tier"), metadata.get("interval"))
+        if plan in _prices():
+            return plan
+    return None
+
+
+def _get_session(session_id: str):
+    try:
+        return _api().checkout.Session.retrieve(session_id, expand=["subscription", "subscription.customer"])
+    except stripe.InvalidRequestError as exc:
+        if exc.code == "resource_missing":
+            raise HTTPException(status_code=404, detail="Checkout session not found.")
+        logger.warning("Couldn't fetch Stripe checkout session {}: {!r}", session_id, exc)
+        raise HTTPException(status_code=502, detail="Couldn't look up the checkout session.")
+    except stripe.StripeError as exc:
+        logger.warning("Couldn't fetch Stripe checkout session {}: {!r}", session_id, exc)
+        raise HTTPException(status_code=502, detail="Couldn't connect to Stripe.")
+
+
 def _get_subscription(subscription_id: str):
     try:
-        return _gateway().subscription.find(subscription_id)
-    except braintree.exceptions.NotFoundError:
-        raise HTTPException(status_code=404, detail="Braintree subscription not found.")
-    except BraintreeError as exc:
-        logger.warning("Couldn't fetch Braintree subscription {}: {!r}", subscription_id, exc)
-        raise HTTPException(status_code=502, detail="Couldn't look up the Braintree subscription.")
+        return _api().Subscription.retrieve(subscription_id, expand=["customer"])
+    except stripe.InvalidRequestError as exc:
+        if exc.code == "resource_missing":
+            raise HTTPException(status_code=404, detail="Stripe subscription not found.")
+        logger.warning("Couldn't fetch Stripe subscription {}: {!r}", subscription_id, exc)
+        raise HTTPException(status_code=502, detail="Couldn't look up the Stripe subscription.")
+    except stripe.StripeError as exc:
+        logger.warning("Couldn't fetch Stripe subscription {}: {!r}", subscription_id, exc)
+        raise HTTPException(status_code=502, detail="Couldn't connect to Stripe.")
 
 
-def _licensee(subscription) -> str:
-    """Who the key is issued to: the customer's email if Braintree has one,
-    else the cardholder name, else the Braintree customer id."""
-    try:
-        gateway = _gateway()
-        payment_method = gateway.payment_method.find(subscription.payment_method_token)
-        customer = gateway.customer.find(payment_method.customer_id)
-        return (
-            customer.email
-            or getattr(payment_method, "cardholder_name", None)
-            or f"Braintree customer {payment_method.customer_id}"
-        )
-    except BraintreeError as exc:
-        logger.warning("Couldn't look up the customer for subscription {}: {!r}", subscription.id, exc)
-        raise HTTPException(status_code=502, detail="Couldn't look up the Braintree customer.")
+def _licensee(subscription, session=None) -> str:
+    """Who the key is issued to: the email the buyer gave Stripe Checkout,
+    else the Stripe customer's email, else the customer id."""
+    email = ((session or {}).get("customer_details") or {}).get("email")
+    if email:
+        return email
+    customer = subscription.get("customer")
+    if isinstance(customer, str):
+        try:
+            customer = _api().Customer.retrieve(customer)
+        except stripe.StripeError as exc:
+            logger.warning("Couldn't look up the customer for subscription {}: {!r}", subscription.get("id"), exc)
+            raise HTTPException(status_code=502, detail="Couldn't look up the Stripe customer.")
+    return (customer or {}).get("email") or f"Stripe customer {(customer or {}).get('id')}"
 
 
-def _fulfil(subscription, licensee: str | None = None) -> dict:
+def _fulfil(subscription, licensee: str) -> dict:
     """Issue a key for the subscription's current billing period, at most once.
 
-    A period is identified by (subscription id, paid-through date): checkout
-    and the first SubscriptionChargedSuccessfully webhook share one, and each
-    successful renewal charge moves paid_through_date forward, so it gets a
-    fresh key.
+    A period is identified by (subscription id, period end): the buyer's
+    return from checkout and the first invoice.paid webhook share one, and
+    each renewal moves the period end forward, so it gets a fresh key. A
+    period that already has one comes back as "duplicate", with that key.
     """
-    if subscription.status != braintree.Subscription.Status.Active:
-        raise HTTPException(status_code=409, detail="Braintree subscription isn't active.")
+    if subscription.get("status") not in _ACTIVE:
+        raise HTTPException(status_code=409, detail="Stripe subscription isn't active.")
 
-    plan = _tier_for_plan(subscription.plan_id)
+    plan = _plan_of(subscription)
     if plan is None:
-        logger.error("Braintree subscription {} is on unknown plan {}.", subscription.id, subscription.plan_id)
-        raise HTTPException(status_code=400, detail="Braintree subscription is for an unknown plan.")
+        logger.error("Stripe subscription {} isn't for a CRM Scoring plan.", subscription.get("id"))
+        raise HTTPException(status_code=400, detail="Stripe subscription is for an unknown plan.")
     tier, interval = plan
 
-    email = licensee or _licensee(subscription)
-
-    transaction_id = f"{subscription.id}@{subscription.paid_through_date}"
+    transaction_id = f"{subscription['id']}@{_period_end(subscription)}"
     with _fulfil_lock:
-        if _already_issued(transaction_id):
-            return {"status": "duplicate"}
-        license_key = _issue_and_deliver(email, interval, tier, transaction_id)
-    return {"status": "ok", "email": email, "tier": tier, "plan": interval, "license_key": license_key}
+        record = _issued_record(transaction_id)
+        if record is not None:
+            status, license_key = "duplicate", record.get("license_key")
+        else:
+            status, license_key = "ok", _issue_and_deliver(licensee, interval, tier, transaction_id)
+    return {"status": status, "email": licensee, "tier": tier, "plan": interval, "license_key": license_key}
 
 
-def _result_error(result) -> str:
-    """A buyer-safe explanation of a failed Braintree call."""
-    verification = getattr(result, "credit_card_verification", None)
-    if verification is not None and verification.status == "processor_declined":
-        return "Your card was declined. Please try a different card."
-    if verification is not None and verification.status == "gateway_rejected":
-        return "Your card couldn't be verified. Check the CVV and postal code and try again."
-    return result.message or "Braintree couldn't process the payment."
+def _activate_workspace(subscription) -> bool:
+    """Hosted deployment: puts the workspace that started this checkout on
+    the plan it paid for. True if this subscription belongs to a workspace."""
+    tenant_id = (subscription.get("metadata") or {}).get("tenant_id")
+    plan = _plan_of(subscription)
+    if not (HOSTED_MODE and tenant_id and plan):
+        return False
+    # Never re-upgrade a workspace whose subscription was since cancelled
+    # (e.g. the buyer reloads the page they returned to).
+    if subscription.get("status") in _ACTIVE and not subscription.get("cancel_at_period_end"):
+        if storage.get_tenant_subscription_id(tenant_id) != subscription["id"]:
+            storage.set_tenant_subscription(tenant_id, plan[0], subscription["id"])
+            logger.info("Workspace {} upgraded to {} ({})", tenant_id, plan[0], subscription["id"])
+    return True
 
 
-class SubscribeRequest(BaseModel):
+class CheckoutRequest(BaseModel):
     interval: Interval
     tier: Tier = "pro"
-    # Optional: checkout doesn't ask for it, but if given the key (and every
-    # renewal key) is emailed there too.
-    email: EmailStr | None = None
-    payment_method_nonce: str = Field(min_length=1, max_length=512)
-    device_data: str | None = Field(default=None, max_length=10_000)
+    # Where the buyer started: the app (returns there) or the website (its thank-you page).
+    source: Literal["app", "site"] = "app"
 
 
 @router.get("/config")
 def billing_config():
-    plans = {f"{tier}_{interval}": plan_id or None for (tier, interval), plan_id in _plans().items()}
     return {
-        "checkout_available": _configured() and all(plans.values()),
-        "plans": plans,
+        "checkout_available": _configured(),
         "currency": BILLING_CURRENCY,
-        "environment": BRAINTREE_ENVIRONMENT,
+        "environment": "live" if STRIPE_SECRET_KEY.startswith(("sk_live_", "rk_live_")) else "test",
         "price_monthly": PRICE_PRO_MONTHLY or None,
         "price_annual": PRICE_PRO_ANNUAL or None,
         "price_advanced_monthly": PRICE_ADVANCED_MONTHLY or None,
@@ -246,95 +308,98 @@ def billing_config():
     }
 
 
-@router.get("/braintree/client-token")
-def braintree_client_token():
-    # Short-lived and public by design -- Drop-in needs it in the browser to
-    # tokenize the card. The private key never leaves the server.
-    try:
-        return {"client_token": _gateway().client_token.generate()}
-    except BraintreeError as exc:
-        logger.warning("Couldn't generate a Braintree client token: {!r}", exc)
-        raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
-
-
-@router.post("/braintree/subscribe")
+@router.post("/stripe/checkout")
 @limiter.limit(RATE_LIMIT_AUTH)
-def braintree_subscribe(
+def stripe_checkout(
     request: Request,
-    payload: SubscribeRequest,
+    payload: CheckoutRequest,
     tenant: storage.Tenant | None = Depends(get_optional_tenant),
 ):
-    """Vault the buyer's card and start the subscription; returns the key.
+    """Starts a Stripe Checkout for the plan; returns the payment page URL.
 
     On the hosted deployment, subscribing from inside a workspace also
-    upgrades that workspace (until the subscription ends -- see the webhook).
+    upgrades that workspace once paid (until the subscription ends -- see
+    the webhook).
     """
-    plan_id = _plan_for(payload.tier, payload.interval)
-    if not plan_id:
-        raise HTTPException(status_code=503, detail="Billing plans aren't configured on this deployment.")
-    gateway = _gateway()
-
-    customer_params = {
-        "payment_method_nonce": payload.payment_method_nonce,
-        "credit_card": {"options": {"verify_card": True}},
-    }
-    if payload.email:
-        customer_params["email"] = payload.email
-    if payload.device_data:
-        customer_params["device_data"] = payload.device_data
-    try:
-        customer = gateway.customer.create(customer_params)
-        if not customer.is_success:
-            logger.info("Braintree customer create failed for {}: {}", payload.email or "(no email)", customer.message)
-            raise HTTPException(status_code=402, detail=_result_error(customer))
-
-        token = customer.customer.payment_methods[0].token
-        created = gateway.subscription.create({"payment_method_token": token, "plan_id": plan_id})
-    except BraintreeError as exc:
-        logger.warning("Braintree checkout failed for {}: {!r}", payload.email or "(no email)", exc)
-        raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
-    if not created.is_success:
-        logger.info("Braintree subscription create failed for {}: {}", payload.email or "(no email)", created.message)
-        raise HTTPException(status_code=402, detail=_result_error(created))
-
-    subscription = created.subscription
+    metadata = {"tier": payload.tier, "interval": payload.interval}
     workspace = HOSTED_MODE and tenant is not None and tenant.id != storage.DEFAULT_TENANT_ID
     if workspace:
-        storage.set_tenant_subscription(tenant.id, payload.tier, subscription.id)
-        logger.info("Workspace {} upgraded to {} ({})", tenant.id, payload.tier, subscription.id)
-    result = _fulfil(subscription, licensee=payload.email or (tenant.email if workspace else None))
-    return {**result, "workspace_upgraded": workspace}
+        metadata["tenant_id"] = tenant.id
 
+    if payload.source == "site":
+        success_url = f"{STOREFRONT_URL.rstrip('/')}/thank-you.html?session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{STOREFRONT_URL.rstrip('/')}/#pricing"
+    else:
+        success_url = f"{APP_BASE_URL.rstrip('/')}/?checkout={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{APP_BASE_URL.rstrip('/')}/#plans"
 
-def _paid_until(subscription) -> float | None:
-    """End of the last paid day, as epoch seconds (None if unknown)."""
-    paid_through = getattr(subscription, "paid_through_date", None)
-    if isinstance(paid_through, str):
-        paid_through = date.fromisoformat(paid_through)
-    if not isinstance(paid_through, date):
-        return None
-    day_after = datetime.combine(paid_through + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
-    return day_after.timestamp()
-
-
-def cancel_at_braintree(subscription_id: str):
-    """Stops future charges on a subscription. Returns it (None if Braintree
-    no longer has it); raises 502 if it couldn't be cancelled, so callers
-    never go on as if billing had stopped when it hasn't."""
-    gateway = _gateway()
+    params = {
+        "mode": "subscription",
+        "line_items": [{"price": _price_id(payload.tier, payload.interval), "quantity": 1}],
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "metadata": metadata,
+        "subscription_data": {"metadata": metadata},
+    }
+    if workspace and tenant.email:
+        params["customer_email"] = tenant.email
     try:
-        subscription = gateway.subscription.find(subscription_id)
-        if subscription.status != braintree.Subscription.Status.Canceled:
-            result = gateway.subscription.cancel(subscription_id)
-            if not result.is_success:
-                logger.warning("Couldn't cancel {}: {}", subscription_id, result.message)
-                raise HTTPException(status_code=502, detail="Braintree couldn't cancel the subscription.")
-        return subscription
-    except braintree.exceptions.NotFoundError:
-        return None
-    except BraintreeError as exc:
+        session = _api().checkout.Session.create(**params)
+    except stripe.StripeError as exc:
+        logger.warning("Couldn't start Stripe checkout for {} {}: {!r}", payload.tier, payload.interval, exc)
+        raise HTTPException(status_code=502, detail="Couldn't connect to Stripe.")
+    return {"url": session["url"], "session_id": session["id"]}
+
+
+@router.get("/stripe/session/{session_id}")
+@limiter.limit(RATE_LIMIT_AUTH)
+def stripe_session(request: Request, session_id: str = PathParam(max_length=255, pattern=r"^cs_[A-Za-z0-9_]+$")):
+    """Confirms a finished checkout and returns its license key.
+
+    Called by the page Stripe sends the buyer back to. Only the buyer has the
+    session id, so a reload shows the same key again instead of a new one.
+    """
+    session = _get_session(session_id)
+    if (
+        session.get("mode") != "subscription"
+        or session.get("status") != "complete"
+        or session.get("payment_status") not in ("paid", "no_payment_required")
+    ):
+        raise HTTPException(status_code=409, detail="This payment isn't complete yet.")
+
+    subscription = session.get("subscription")
+    if isinstance(subscription, str):
+        subscription = _get_subscription(subscription)
+    upgraded = _activate_workspace(subscription)
+    result = _fulfil(subscription, _licensee(subscription, session))
+    if result["status"] == "duplicate" and result["license_key"]:
+        result["status"] = "ok"
+    return {**result, "workspace_upgraded": upgraded}
+
+
+def cancel_at_stripe(subscription_id: str, *, immediately: bool = False):
+    """Stops future charges on a subscription -- at the end of the paid
+    period, or right away (e.g. the account is being deleted). Returns the
+    subscription (None if Stripe no longer has it); raises 502 if it couldn't
+    be cancelled, so callers never go on as if billing had stopped when it hasn't."""
+    api = _api()
+    try:
+        subscription = api.Subscription.retrieve(subscription_id)
+        if subscription.get("status") in ("canceled", "incomplete_expired"):
+            return subscription
+        if immediately:
+            return api.Subscription.cancel(subscription_id)
+        if subscription.get("cancel_at_period_end"):
+            return subscription
+        return api.Subscription.modify(subscription_id, cancel_at_period_end=True)
+    except stripe.InvalidRequestError as exc:
+        if exc.code == "resource_missing":
+            return None
         logger.warning("Couldn't cancel {}: {!r}", subscription_id, exc)
-        raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
+        raise HTTPException(status_code=502, detail="Stripe couldn't cancel the subscription.")
+    except stripe.StripeError as exc:
+        logger.warning("Couldn't cancel {}: {!r}", subscription_id, exc)
+        raise HTTPException(status_code=502, detail="Couldn't connect to Stripe.")
 
 
 @router.post("/subscription/cancel")
@@ -344,68 +409,98 @@ def cancel_workspace_subscription(tenant: storage.Tenant = Depends(get_current_t
     subscription_id = storage.get_tenant_subscription_id(tenant.id)
     if not subscription_id:
         raise HTTPException(status_code=404, detail="This workspace has no active subscription.")
-    subscription = cancel_at_braintree(subscription_id)
+    subscription = cancel_at_stripe(subscription_id)
 
-    access_until = _paid_until(subscription) if subscription is not None else None
+    access_until = _period_end(subscription) if subscription is not None else None
     storage.end_tenant_subscription(subscription_id, access_until)
     logger.info("Workspace {} cancelled {} (access until {})", tenant.id, subscription_id, access_until)
     return {"status": "cancelled", "access_until": access_until}
 
 
-@router.post("/braintree/webhook")
-async def braintree_webhook(request: Request):
-    """Renewals, plus a fallback if the checkout response never reached the buyer.
+@router.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Renewals and cancellations, plus a fallback if the buyer never made it
+    back from checkout.
 
-    Add https://<backend>/api/billing/braintree/webhook in the Braintree
-    Control Panel (Settings -> Webhooks) for "Subscription Charged
-    Successfully" and "Subscription Went Active".
+    In the Stripe Dashboard (Developers -> Webhooks) add
+    https://<backend>/api/billing/stripe/webhook for checkout.session.completed,
+    invoice.paid, customer.subscription.updated and
+    customer.subscription.deleted, and set its signing secret as
+    STRIPE_WEBHOOK_SECRET.
     """
-    form = await request.form()
-    signature, payload = form.get("bt_signature"), form.get("bt_payload")
-    if not isinstance(signature, str) or not isinstance(payload, str):
-        raise HTTPException(status_code=400, detail="Missing Braintree webhook signature or payload.")
-    # Everything below makes blocking Braintree API calls -- keep them off
-    # the event loop.
-    return await run_in_threadpool(_handle_webhook, signature, payload)
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+    if not signature:
+        raise HTTPException(status_code=400, detail="Missing Stripe webhook signature.")
+    # Everything below makes blocking Stripe API calls -- keep them off the
+    # event loop.
+    return await run_in_threadpool(_handle_webhook, payload, signature)
 
 
-def _parse_webhook(signature: str, payload: str):
+def _parse_webhook(payload: bytes, signature: str):
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Stripe webhooks aren't configured on this deployment.")
     try:
-        return _gateway().webhook_notification.parse(signature, payload)
-    except braintree.exceptions.InvalidSignatureError:
-        raise HTTPException(status_code=400, detail="Invalid Braintree webhook signature.")
+        return stripe.Webhook.construct_event(payload, signature, STRIPE_WEBHOOK_SECRET)
+    except (ValueError, stripe.SignatureVerificationError):
+        raise HTTPException(status_code=400, detail="Invalid Stripe webhook signature.")
 
 
-def _handle_webhook(signature: str, payload: str) -> dict:
-    notification = _parse_webhook(signature, payload)
-    kind = notification.kind
-    Kind = braintree.WebhookNotification.Kind
-    if kind in (Kind.SubscriptionCanceled, Kind.SubscriptionExpired):
-        # A hosted workspace keeps its plan until the paid period ends (if
-        # cancelled early), then drops to Starter; a self-hosted buyer's last
-        # key just runs out, since no renewal will issue a new one.
-        until = _paid_until(notification.subscription) if kind == Kind.SubscriptionCanceled else None
-        storage.end_tenant_subscription(notification.subscription.id, until)
-        logger.info("Braintree {} for subscription {}", kind, notification.subscription.id)
+def _invoice_subscription_id(invoice) -> str | None:
+    # API 2025-03-31 and later: invoice.parent.subscription_details.subscription;
+    # earlier versions: invoice.subscription.
+    details = (invoice.get("parent") or {}).get("subscription_details") or {}
+    subscription = details.get("subscription") or invoice.get("subscription")
+    return subscription if isinstance(subscription, str) else (subscription or {}).get("id")
+
+
+def _handle_webhook(payload: bytes, signature: str) -> dict:
+    event = _parse_webhook(payload, signature)
+    kind = event["type"]
+    obj = event["data"]["object"]
+
+    if kind == "customer.subscription.deleted":
+        storage.end_tenant_subscription(obj["id"], None)
+        logger.info("Stripe subscription {} ended", obj["id"])
         return {"status": "ok"}
-    if kind not in (Kind.SubscriptionChargedSuccessfully, Kind.SubscriptionWentActive):
-        if kind == Kind.Check:
-            return {"status": "ok"}  # the Control Panel's "Check URL" test
-        # Past due etc.: nothing to do until it's charged or cancelled.
-        subscription = getattr(notification, "subscription", None)
-        logger.info("Braintree {} for subscription {}", kind, getattr(subscription, "id", None))
+    if kind == "customer.subscription.updated":
+        # A hosted workspace keeps its plan until the paid period ends if it
+        # was cancelled early, then drops to Starter; a self-hosted buyer's
+        # last key just runs out, since no renewal will issue a new one.
+        if obj.get("status") in ("canceled", "unpaid", "incomplete_expired"):
+            storage.end_tenant_subscription(obj["id"], None)
+        elif obj.get("cancel_at_period_end"):
+            storage.end_tenant_subscription(obj["id"], _period_end(obj))
+        return {"status": "ok"}
+
+    if kind == "checkout.session.completed":
+        if obj.get("mode") != "subscription":
+            return {"status": "ignored"}
+        session = _get_session(obj["id"])
+        subscription = session.get("subscription")
+        if isinstance(subscription, str):
+            subscription = _get_subscription(subscription)
+        _activate_workspace(subscription)
+        licensee_of = lambda: _licensee(subscription, session)  # noqa: E731
+    elif kind == "invoice.paid":
+        subscription_id = _invoice_subscription_id(obj)
+        if not subscription_id:
+            return {"status": "ignored"}
+        # Re-read the subscription so its period reflects the invoice just paid.
+        subscription = _get_subscription(subscription_id)
+        licensee_of = lambda: obj.get("customer_email") or _licensee(subscription)  # noqa: E731
+    else:
+        # Failed payments etc.: nothing to do until it's paid or cancelled.
+        logger.info("Stripe {} ignored", kind)
         return {"status": "ignored"}
 
-    # Re-read the subscription rather than trusting the payload's snapshot, so
-    # paid_through_date reflects the charge that was just made.
-    subscription_id = notification.subscription.id
     try:
-        result = _fulfil(_get_subscription(subscription_id))
+        result = _fulfil(subscription, licensee_of())
     except HTTPException as exc:
         # 4xx here means the subscription itself is unusable -- acknowledge
-        # it so Braintree stops retrying. 5xx/502s propagate and it retries.
+        # it so Stripe stops retrying. 5xx/502s propagate and it retries.
         if exc.status_code < 500:
-            logger.warning("Braintree webhook {} for {} not fulfilled: {}", kind, subscription_id, exc.detail)
+            logger.warning("Stripe {} for {} not fulfilled: {}", kind, subscription.get("id"), exc.detail)
             return {"status": "rejected"}
         raise
     return {"status": result["status"]}

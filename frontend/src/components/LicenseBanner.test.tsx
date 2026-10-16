@@ -3,8 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LicenseBanner } from "./LicenseBanner";
 import * as api from "../api";
-import * as braintree from "../braintree";
-import { configured, fakeDropin } from "../test/braintreeFixtures";
+import { configured } from "../test/billingFixtures";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
@@ -12,14 +11,11 @@ vi.mock("../api", async (importActual) => {
     ...actual,
     fetchLicenseStatus: vi.fn(),
     fetchBillingConfig: vi.fn(),
-    fetchBraintreeClientToken: vi.fn(),
-    subscribeWithBraintree: vi.fn(),
+    startStripeCheckout: vi.fn(),
     startFreeTrial: vi.fn(),
     cancelWorkspaceSubscription: vi.fn(),
   };
 });
-
-vi.mock("../braintree", () => ({ loadDropin: vi.fn() }));
 
 const trial = {
   licensed: false as const, reason: "trial" as const, customer_email: null, plan: null, tier: "starter" as const, trial_uploads_left: 5,
@@ -31,8 +27,7 @@ describe("LicenseBanner", () => {
     localStorage.clear();
     // Most tests don't care about checkout -- default it "off" unless a test
     // explicitly opts in.
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "sandbox", checkout_available: false });
-    vi.mocked(api.fetchBraintreeClientToken).mockResolvedValue("client-token");
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "test", checkout_available: false });
   });
 
   it("renders nothing until the license status has loaded", () => {
@@ -105,79 +100,45 @@ describe("LicenseBanner", () => {
     expect(screen.queryByText(/starter \(free\)/i)).not.toBeInTheDocument();
   });
 
-  it("renders the card form for the chosen plan and shows the key after paying", async () => {
+  it("sends the buyer to Stripe's checkout page for the chosen plan", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    const fake = fakeDropin();
-    vi.mocked(braintree.loadDropin).mockResolvedValue(fake.namespace);
-    vi.mocked(api.subscribeWithBraintree).mockResolvedValue({
-      status: "ok", email: "buyer@example.com", tier: "advanced", plan: "annual", license_key: "LK-123",
-    });
+    vi.mocked(api.startStripeCheckout).mockResolvedValue({ url: "https://checkout.stripe.com/c/pay/cs_test_1" });
+    const assign = vi.fn();
+    vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign });
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /advanced annual/i }));
 
     expect(await screen.findByText(/advanced — \$384\/year/i)).toBeInTheDocument();
-    await waitFor(() => expect(fake.options()?.authorization).toBe("client-token"));
-    await userEvent.click(await screen.findByRole("button", { name: /subscribe — \$384\/year/i }));
+    await userEvent.click(screen.getByRole("button", { name: /continue to secure checkout/i }));
 
-    expect(api.subscribeWithBraintree).toHaveBeenCalledWith({
-      tier: "advanced", interval: "annual", payment_method_nonce: "nonce-1", device_data: "dd",
-    });
-    expect(await screen.findByText("LK-123")).toBeInTheDocument();
-    expect(screen.getByText("buyer@example.com")).toBeInTheDocument();
+    expect(api.startStripeCheckout).toHaveBeenCalledWith("advanced", "annual");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_test_1"));
+    vi.restoreAllMocks();
   });
 
-  it("says checkout isn't configured instead of loading Braintree when it's unavailable", async () => {
+  it("says checkout isn't configured when it's unavailable", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
 
     expect(await screen.findByText("Checkout isn't configured on this deployment.")).toBeInTheDocument();
-    expect(braintree.loadDropin).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /continue to secure checkout/i })).not.toBeInTheDocument();
   });
 
-  it("shows a load error when Drop-in's script can't load", async () => {
+  it("shows why checkout couldn't start and lets the buyer try again", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    vi.mocked(braintree.loadDropin).mockRejectedValue(new Error("Couldn't load the payment form."));
-
-    render(<LicenseBanner />);
-    await userEvent.click(await screen.findByRole("button", { name: /pro annual/i }));
-
-    expect(await screen.findByText("Couldn't load the payment form.")).toBeInTheDocument();
-  });
-
-  it("keeps the form open with the reason when the card is declined", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    vi.mocked(braintree.loadDropin).mockResolvedValue(fakeDropin().namespace);
-    vi.mocked(api.subscribeWithBraintree).mockRejectedValue(new Error("Your card was declined. Please try a different card."));
+    vi.mocked(api.startStripeCheckout).mockRejectedValue(new Error("Couldn't connect to Stripe."));
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
-    const pay = await screen.findByRole("button", { name: /subscribe — \$20\/month/i });
-    await waitFor(() => expect(pay).toBeEnabled());
-    await userEvent.click(pay);
+    await userEvent.click(await screen.findByRole("button", { name: /continue to secure checkout/i }));
 
-    expect(await screen.findByText(/your card was declined/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /subscribe — \$20\/month/i })).toBeEnabled();
-  });
-
-  it("doesn't charge when the card form is incomplete", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    vi.mocked(braintree.loadDropin).mockResolvedValue(fakeDropin(new Error("No payment method is available.")).namespace);
-
-    render(<LicenseBanner />);
-    await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
-    const pay = await screen.findByRole("button", { name: /subscribe — \$20\/month/i });
-    await waitFor(() => expect(pay).toBeEnabled());
-    await userEvent.click(pay);
-
-    expect(await screen.findByText("Please complete your card details.")).toBeInTheDocument();
-    expect(api.subscribeWithBraintree).not.toHaveBeenCalled();
+    expect(await screen.findByText("Couldn't connect to Stripe.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /continue to secure checkout/i })).toBeEnabled();
   });
 
   it("offers a one-click free trial to a new visitor on the hosted deployment", async () => {
@@ -234,28 +195,6 @@ describe("LicenseBanner", () => {
 
     await waitFor(() => expect(api.fetchLicenseStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
-  });
-
-  it("upgrades a hosted workspace in place after paying", async () => {
-    api.setTenantApiKey("trial-key");
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({ ...trial, hosted: true });
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    vi.mocked(braintree.loadDropin).mockResolvedValue(fakeDropin().namespace);
-    vi.mocked(api.subscribeWithBraintree).mockResolvedValue({
-      status: "ok", email: "Jane Doe", tier: "pro", plan: "monthly", license_key: "LK", workspace_upgraded: true,
-    });
-    const onWorkspaceChange = vi.fn();
-
-    render(<LicenseBanner onWorkspaceChange={onWorkspaceChange} />);
-    await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
-    const pay = await screen.findByRole("button", { name: /subscribe — \$20\/month/i });
-    await waitFor(() => expect(pay).toBeEnabled());
-    await userEvent.click(pay);
-
-    expect(await screen.findByText(/this workspace is now on pro/i)).toBeInTheDocument();
-    expect(screen.queryByText("LK")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(onWorkspaceChange).toHaveBeenCalled();
   });
 
   it("lets a hosted subscriber cancel, keeping access until the paid period ends", async () => {

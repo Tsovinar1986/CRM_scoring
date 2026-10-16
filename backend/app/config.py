@@ -128,40 +128,34 @@ TRIAL_MAX_LEADS_PER_UPLOAD = int(os.getenv("TRIAL_MAX_LEADS_PER_UPLOAD", "10"))
 # --- Licensing (seller side) ---
 # Only used by routers/billing.py, which the seller runs on their own
 # storefront deployment -- buyers' self-hosted instances never need these.
-# Braintree subscriptions: Pro and Advanced each have a monthly and an annual
-# billing plan; Starter is free and has none. Every successful charge
-# issues a fresh expiring license key. See licensing/README.md for setup.
+# Stripe subscriptions: Pro and Advanced each bill monthly or annually;
+# Starter is free and has none. Every paid invoice issues a fresh expiring
+# license key. See licensing/README.md for setup.
 LICENSE_PRIVATE_KEY = os.getenv("LICENSE_PRIVATE_KEY", "")
-# "sandbox" (default, no real charges) or "production" -- sandbox and
-# production accounts have separate keys, so set the matching three.
-BRAINTREE_ENVIRONMENT = os.getenv("BRAINTREE_ENVIRONMENT", "sandbox")
-BRAINTREE_MERCHANT_ID = os.getenv("BRAINTREE_MERCHANT_ID", "")
-BRAINTREE_PUBLIC_KEY = os.getenv("BRAINTREE_PUBLIC_KEY", "")
-BRAINTREE_PRIVATE_KEY = os.getenv("BRAINTREE_PRIVATE_KEY", "")
-# Prices are decimal amounts in BILLING_CURRENCY, used for display and by
-# scripts/create_braintree_plans.py; what's actually charged is set on each
-# Braintree plan. Advanced is functionally identical to Pro today, priced
-# higher for agency/multi-client framing.
+# sk_test_... (test mode, no real charges) or sk_live_... -- from the Stripe
+# Dashboard -> Developers -> API keys. Keep it in .env / the host's secrets.
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+# whsec_... for the webhook endpoint https://<backend>/api/billing/stripe/webhook
+# (Dashboard -> Developers -> Webhooks); renewals and cancellations need it.
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+# Prices are decimal amounts in BILLING_CURRENCY. routers/billing.py creates
+# the matching Stripe price on first checkout and finds it again by a lookup
+# key that includes the amount -- so changing an amount here just starts
+# selling a new price; existing subscribers stay on theirs. Advanced is functionally identical to Pro today, priced higher for
+# agency/multi-client framing.
 BILLING_CURRENCY = os.getenv("BILLING_CURRENCY", "USD")
 PRICE_PRO_MONTHLY = os.getenv("PRICE_PRO_MONTHLY", "20.00")
 PRICE_PRO_ANNUAL = os.getenv("PRICE_PRO_ANNUAL", "192.00")
 PRICE_ADVANCED_MONTHLY = os.getenv("PRICE_ADVANCED_MONTHLY", "40.00")
 PRICE_ADVANCED_ANNUAL = os.getenv("PRICE_ADVANCED_ANNUAL", "384.00")
-# Braintree plan ids. We choose these ourselves, so the defaults are the ids
-# scripts/create_braintree_plans.py creates -- only override them if you
-# made the plans by hand in the Braintree Control Panel.
-BRAINTREE_PLAN_PRO_MONTHLY = os.getenv("BRAINTREE_PLAN_PRO_MONTHLY", "crm-scoring-pro-monthly")
-BRAINTREE_PLAN_PRO_ANNUAL = os.getenv("BRAINTREE_PLAN_PRO_ANNUAL", "crm-scoring-pro-annual")
-BRAINTREE_PLAN_ADVANCED_MONTHLY = os.getenv("BRAINTREE_PLAN_ADVANCED_MONTHLY", "crm-scoring-advanced-monthly")
-BRAINTREE_PLAN_ADVANCED_ANNUAL = os.getenv("BRAINTREE_PLAN_ADVANCED_ANNUAL", "crm-scoring-advanced-annual")
-# Public marketing site (docs/) -- buyers land on its thank-you.html after
-# paying and on its pricing section if they cancel.
+# Public marketing site (docs/) -- buyers who subscribe there land on its
+# thank-you.html after paying and on its pricing section if they cancel.
 STOREFRONT_URL = os.getenv("STOREFRONT_URL", "https://crmscoring.com")
 # Licenses are issued with an expiry this many days out, not a perpetual
 # one -- an already-issued offline key can't be revoked, so this bounds
 # how long a cancelled subscriber keeps working. Every renewal issues a
 # fresh key, so the windows only need to run a little past one billing
-# period (to allow for Braintree's payment retries).
+# period (to allow for Stripe's payment retries).
 LICENSE_VALIDITY_DAYS_MONTHLY = int(os.getenv("LICENSE_VALIDITY_DAYS_MONTHLY", "35"))
 LICENSE_VALIDITY_DAYS_ANNUAL = int(os.getenv("LICENSE_VALIDITY_DAYS_ANNUAL", "380"))
 

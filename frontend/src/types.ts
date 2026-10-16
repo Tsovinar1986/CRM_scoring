@@ -55,25 +55,13 @@ export type PlanKey = `${PaidTier}_${BillingInterval}`;
 
 export interface BillingConfig {
   checkout_available: boolean;
-  // Braintree plan id per paid tier/interval. Starter is free.
-  plans?: Partial<Record<PlanKey, string | null>>;
   currency?: string;
-  environment: "sandbox" | "production";
+  // "test" while the deployment uses a Stripe test-mode key (no real charges).
+  environment: "test" | "live";
   price_monthly?: string | null;
   price_annual?: string | null;
   price_advanced_monthly?: string | null;
   price_advanced_annual?: string | null;
-}
-
-export interface SubscribeRequest {
-  tier: PaidTier;
-  interval: BillingInterval;
-  // Optional -- checkout doesn't ask for it; renewal keys are emailed only if set.
-  email?: string;
-  // From Braintree Drop-in's requestPaymentMethod() -- a one-time token for
-  // the card, never the card details themselves.
-  payment_method_nonce: string;
-  device_data?: string;
 }
 
 export type SubscriptionActivation =
@@ -86,7 +74,7 @@ export type SubscriptionActivation =
       // Hosted deployment: the buyer's own workspace was upgraded in place.
       workspace_upgraded?: boolean;
     }
-  | { status: "duplicate" };
+  | { status: "duplicate"; workspace_upgraded?: boolean };
 
 export interface TenantAuth {
   tenant_id: string;

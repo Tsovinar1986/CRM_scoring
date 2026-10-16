@@ -88,6 +88,8 @@
     font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.82rem;
     background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
   }
+  .card code.license-key { display: block; word-break: break-all; padding: 8px 10px; margin: 0 0 14px; background: var(--accent-bg); color: var(--text-h); }
+  .card code.license-key[hidden] { display: none; }
   .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 22px; }
   .btn {
     display: inline-block; padding: 11px 20px; border-radius: 4px; font-weight: 600;
@@ -120,7 +122,8 @@
         </svg>
       </div>
       <h1>Thanks for subscribing</h1>
-      <p>Your license key is on its way to the email you paid with.</p>
+      <p id="message">Your license key is on its way to the email you paid with.</p>
+      <code id="license-key" class="license-key" hidden></code>
       <p>
         Add it to your self-hosted deployment's <code>.env</code> as
         <code>LICENSE_KEY</code> (with <code>LICENSE_REQUIRED=true</code>) to unlock
@@ -144,13 +147,35 @@
     </div>
   </footer>
   <script>
-    // Checkout now completes in-page (Braintree Drop-in); this page is kept
-    // for old links and still understands ?status=ok|pending|failed.
-    const status = new URLSearchParams(window.location.search).get("status");
-    const message = document.querySelector(".card p");
-    if (message && status === "pending") {
+    // Stripe sends buyers here with ?session_id=<checkout session>; confirm it
+    // with the backend and show the key right away (it's emailed too).
+    // ?status=pending|failed is still understood for old links.
+    var API_BASE = "https://ai-lead-generation-scoring.onrender.com/api";
+    var params = new URLSearchParams(window.location.search);
+    var message = document.getElementById("message");
+    var keyEl = document.getElementById("license-key");
+    var sessionId = params.get("session_id");
+    if (sessionId) {
+      message.textContent = "Confirming your payment…";
+      fetch(API_BASE + "/billing/stripe/session/" + encodeURIComponent(sessionId)).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          if (!res.ok) throw new Error(body.detail || "Couldn't confirm the payment.");
+          return body;
+        });
+      }).then(function (result) {
+        if (result.license_key) {
+          message.textContent = "Your license key" + (result.email && result.email.indexOf("@") > 0 ? " (also emailed to " + result.email + ")" : "") + ":";
+          keyEl.textContent = result.license_key;
+          keyEl.hidden = false;
+        } else {
+          message.textContent = "Your license key is on its way to the email you paid with.";
+        }
+      }, function (err) {
+        message.textContent = err.message + " If you were charged, email hello@crmscoring.com and we'll sort it out.";
+      });
+    } else if (params.get("status") === "pending") {
       message.textContent = "Thanks! Your payment is still being confirmed. Your license key will be emailed to you within a few minutes.";
-    } else if (message && status === "failed") {
+    } else if (params.get("status") === "failed") {
       message.textContent = "We couldn't confirm your subscription automatically. If you were charged, email hello@crmscoring.com and we'll sort it out.";
     }
   </script>

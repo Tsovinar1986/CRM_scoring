@@ -9,7 +9,7 @@ import {
 } from "../api";
 import type { BillingConfig, BillingInterval, LicenseStatus, PaidTier } from "../types";
 import { isNativeApp } from "../nativeApp";
-import { BraintreeSubscribe } from "./BraintreeSubscribe";
+import { StripeSubscribe } from "./StripeSubscribe";
 
 type Selection = { tier: PaidTier; interval: BillingInterval };
 
@@ -114,7 +114,7 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
       );
     fetchBillingConfig()
       .then(setBilling)
-      .catch(() => setBilling({ checkout_available: false, environment: "sandbox" }));
+      .catch(() => setBilling({ checkout_available: false, environment: "test" }));
   }, []);
 
   function isSelected(tier: PaidTier, interval: BillingInterval) {
@@ -262,18 +262,17 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
             >
               Advanced annual (save 20%)
             </button>
-            {billing?.checkout_available && <span className="text-xs text-text/70">Secure card checkout by Braintree</span>}
+            {billing?.checkout_available && <span className="text-xs text-text/70">Secure card checkout by Stripe</span>}
           </>
         )}
       </div>
       {showBuyButtons && selected && billing && (
-        <BraintreeSubscribe
+        <StripeSubscribe
           key={`${selected.tier}-${selected.interval}`}
           config={billing}
           tier={selected.tier}
           interval={selected.interval}
           onClose={() => setSelected(null)}
-          onUpgraded={onWorkspaceChange}
         />
       )}
     </div>

@@ -41,13 +41,9 @@ services:
       # this deployment's own LICENSE_KEY) is never exposed to them.
       - key: HOSTED_MODE
         value: "true"
-      - key: BRAINTREE_ENVIRONMENT
-        value: sandbox
-      - key: BRAINTREE_MERCHANT_ID
+      - key: STRIPE_SECRET_KEY
         sync: false
-      - key: BRAINTREE_PUBLIC_KEY
-        sync: false
-      - key: BRAINTREE_PRIVATE_KEY
+      - key: STRIPE_WEBHOOK_SECRET
         sync: false
       - key: BILLING_CURRENCY
         value: USD
