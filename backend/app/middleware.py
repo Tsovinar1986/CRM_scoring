@@ -39,7 +39,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            # Payment happens on Stripe's own checkout page (a full-page
+            # Payment happens on Paying's checkout page (a full-page
             # redirect), so the app itself loads nothing from third parties.
             "script-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "

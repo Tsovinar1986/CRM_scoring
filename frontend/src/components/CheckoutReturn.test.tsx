@@ -6,7 +6,7 @@ import * as api from "../api";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
-  return { ...actual, confirmStripeCheckout: vi.fn() };
+  return { ...actual, confirmCheckout: vi.fn() };
 });
 
 describe("CheckoutReturn", () => {
@@ -19,15 +19,15 @@ describe("CheckoutReturn", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("renders nothing when not returning from Stripe", () => {
+  it("renders nothing when not returning from checkout", () => {
     window.history.replaceState(null, "", "/");
     const { container } = render(<CheckoutReturn onDone={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
-    expect(api.confirmStripeCheckout).not.toHaveBeenCalled();
+    expect(api.confirmCheckout).not.toHaveBeenCalled();
   });
 
   it("confirms the payment and says the workspace was upgraded", async () => {
-    vi.mocked(api.confirmStripeCheckout).mockResolvedValue({
+    vi.mocked(api.confirmCheckout).mockResolvedValue({
       status: "ok", email: "jane@example.com", tier: "advanced", plan: "monthly", license_key: "LK", workspace_upgraded: true,
     });
     const onDone = vi.fn();
@@ -35,14 +35,14 @@ describe("CheckoutReturn", () => {
     render(<CheckoutReturn onDone={onDone} />);
 
     expect(await screen.findByText(/this workspace is now on advanced/i)).toBeInTheDocument();
-    expect(api.confirmStripeCheckout).toHaveBeenCalledWith("cs_test_1");
+    expect(api.confirmCheckout).toHaveBeenCalledWith("cs_test_1");
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(onDone).toHaveBeenCalled();
     expect(window.location.search).toBe("");
   });
 
   it("shows the license key for a self-hosted buyer", async () => {
-    vi.mocked(api.confirmStripeCheckout).mockResolvedValue({
+    vi.mocked(api.confirmCheckout).mockResolvedValue({
       status: "ok", email: "buyer@example.com", tier: "pro", plan: "annual", license_key: "LK-123", workspace_upgraded: false,
     });
 
@@ -53,7 +53,7 @@ describe("CheckoutReturn", () => {
   });
 
   it("explains when the payment can't be confirmed", async () => {
-    vi.mocked(api.confirmStripeCheckout).mockRejectedValue(new Error("This payment isn't complete yet."));
+    vi.mocked(api.confirmCheckout).mockRejectedValue(new Error("This payment isn't complete yet."));
 
     render(<CheckoutReturn onDone={vi.fn()} />);
 

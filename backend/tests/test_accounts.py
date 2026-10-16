@@ -271,7 +271,7 @@ def test_delete_account_cancels_the_subscription_first(client, monkeypatch):
     tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
     storage.set_tenant_subscription(tenant.id, "pro", "sub9")
     cancelled = []
-    monkeypatch.setattr(accounts, "cancel_at_stripe", lambda sub_id, immediately: cancelled.append((sub_id, immediately)))
+    monkeypatch.setattr(accounts, "cancel_subscription", lambda sub_id, immediately: cancelled.append((sub_id, immediately)))
 
     resp = client.request("DELETE", "/api/accounts/me", headers=headers, json={"password": "Correct-Horse9"})
     assert resp.status_code == 200
@@ -286,9 +286,9 @@ def test_delete_account_keeps_everything_if_the_cancel_fails(client, monkeypatch
     storage.set_tenant_subscription(tenant.id, "pro", "sub9")
 
     def fail(sub_id, immediately):
-        raise HTTPException(status_code=502, detail="Couldn't connect to Stripe.")
+        raise HTTPException(status_code=502, detail="Couldn't connect to the payment service.")
 
-    monkeypatch.setattr(accounts, "cancel_at_stripe", fail)
+    monkeypatch.setattr(accounts, "cancel_subscription", fail)
     resp = client.request("DELETE", "/api/accounts/me", headers=headers, json={"password": "Correct-Horse9"})
     assert resp.status_code == 502
     assert client.get("/api/accounts/me", headers=headers).json()["has_subscription"] is True

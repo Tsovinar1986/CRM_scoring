@@ -9,7 +9,7 @@ import {
 } from "../api";
 import type { BillingConfig, BillingInterval, LicenseStatus, PaidTier } from "../types";
 import { isNativeApp } from "../nativeApp";
-import { StripeSubscribe } from "./StripeSubscribe";
+import { Subscribe } from "./Subscribe";
 
 type Selection = { tier: PaidTier; interval: BillingInterval };
 
@@ -262,12 +262,12 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
             >
               Advanced annual (save 20%)
             </button>
-            {billing?.checkout_available && <span className="text-xs text-text/70">Secure card checkout by Stripe</span>}
+            {billing?.checkout_available && <span className="text-xs text-text/70">Secure card checkout on the bank's page</span>}
           </>
         )}
       </div>
       {showBuyButtons && selected && billing && (
-        <StripeSubscribe
+        <Subscribe
           key={`${selected.tier}-${selected.interval}`}
           config={billing}
           tier={selected.tier}

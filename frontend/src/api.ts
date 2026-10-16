@@ -124,11 +124,10 @@ export async function fetchBillingConfig(): Promise<BillingConfig> {
   return handle(res);
 }
 
-// Starts a Stripe Checkout for the plan and returns the URL of Stripe's
-// payment page. The workspace header lets the hosted deployment upgrade that
+// Starts a checkout for the plan and returns the URL of the payment page. The workspace header lets the hosted deployment upgrade that
 // workspace once it's paid.
-export async function startStripeCheckout(tier: PaidTier, interval: BillingInterval): Promise<{ url: string }> {
-  const res = await fetch(`${BASE}/billing/stripe/checkout`, {
+export async function startCheckout(tier: PaidTier, interval: BillingInterval): Promise<{ url: string }> {
+  const res = await fetch(`${BASE}/billing/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ tier, interval, source: "app" }),
@@ -136,10 +135,10 @@ export async function startStripeCheckout(tier: PaidTier, interval: BillingInter
   return handle(res);
 }
 
-// Called on return from Stripe (?checkout=<session id>): confirms the payment
+// Called on return from checkout (?checkout=<session id>): confirms the payment
 // and returns the license key, or that the workspace was upgraded.
-export async function confirmStripeCheckout(sessionId: string): Promise<SubscriptionActivation> {
-  const res = await fetch(`${BASE}/billing/stripe/session/${encodeURIComponent(sessionId)}`);
+export async function confirmCheckout(sessionId: string): Promise<SubscriptionActivation> {
+  const res = await fetch(`${BASE}/billing/session/${encodeURIComponent(sessionId)}`);
   return handle(res);
 }
 

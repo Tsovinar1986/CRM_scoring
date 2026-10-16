@@ -309,7 +309,7 @@
         <button type="button" class="toggle-btn" id="toggle-annual" onclick="selectInterval('annual')">Yearly <span class="save-chip">Save 20%</span></button>
       </div>
 
-      <!-- Three real tiers. Starter has no Stripe price at all -- it's the
+      <!-- Three real tiers. Starter has no price at all -- it's the
            unlicensed default (app/licensing.py), permanently capped at
            TRIAL_MAX_UPLOADS/TRIAL_MAX_LEADS_PER_UPLOAD. Pro and Advanced are
            functionally identical (no extra caps/features on Advanced yet) --
@@ -370,7 +370,7 @@
           <h3 id="checkout-title">Subscribe</h3>
           <button type="button" class="link-btn" id="checkout-cancel" onclick="closeCheckout()">Cancel</button>
         </div>
-        <p class="fine" id="checkout-fine">Billed by card through Stripe. You'll enter your card on Stripe's secure checkout page; your license key is shown and emailed right after.</p>
+        <p class="fine" id="checkout-fine">Billed by card. You'll enter your card on the bank's secure payment page; your license key is shown and emailed right after.</p>
         <p id="checkout-form-error" class="error" hidden></p>
         <button type="button" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" onclick="pay()">Continue to secure checkout</button>
       </div>
@@ -398,8 +398,9 @@
       document.getElementById("toggle-annual").classList.toggle("active", interval === "annual");
       ["pro", "advanced"].forEach(function (tier) { var el = document.getElementById("price-" + tier); el.textContent = interval === "annual" ? (tier === "pro" ? "$192" : "$384") : (tier === "pro" ? "$20" : "$40"); });
     }
-    // Checkout happens on Stripe's own page; Stripe sends the buyer back to
-    // thank-you.html?session_id=..., which shows the license key.
+    // Checkout happens on Paying's page (the card goes on the bank's page);
+    // the buyer comes back to thank-you.html?session_id=..., which shows the
+    // license key.
     var PRICES = { pro: { monthly: "$20/month", annual: "$192/year" }, advanced: { monthly: "$40/month", annual: "$384/year" } };
     var checkoutPlan = null;
     function $(id) { return document.getElementById(id); }
@@ -478,7 +479,7 @@
       formError("");
       $("checkout-pay").disabled = true;
       $("checkout-pay").textContent = "Opening secure checkout…";
-      api("/billing/stripe/checkout", {
+      api("/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier: checkoutPlan.tier, interval: checkoutPlan.interval, source: "site" })

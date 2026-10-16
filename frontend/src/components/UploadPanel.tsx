@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { LicenseRequiredError, TenantAuthError, fetchBillingConfig, uploadLeads } from "../api";
 import type { BillingConfig, BillingInterval, ScoredLead } from "../types";
 import { isNativeApp } from "../nativeApp";
-import { StripeSubscribe } from "./StripeSubscribe";
+import { Subscribe } from "./Subscribe";
 
 interface Props {
   onUploaded: (leads: ScoredLead[]) => void;
@@ -174,7 +174,7 @@ export function UploadPanel({ onUploaded }: Props) {
                 Buy annual (save 20%)
               </button>
               {buyInterval && billing && (
-                <StripeSubscribe
+                <Subscribe
                   key={buyInterval}
                   config={billing}
                   tier="pro"

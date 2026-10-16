@@ -4,12 +4,12 @@ import {
   TenantAuthError,
   clearTenantApiKey,
   fetchBillingConfig,
-  confirmStripeCheckout,
+  confirmCheckout,
   fetchLicenseStatus,
   startFreeTrial,
   fetchLeads,
   setTenantApiKey,
-  startStripeCheckout,
+  startCheckout,
   uploadLeads,
 } from "./api";
 
@@ -127,35 +127,35 @@ describe("fetchBillingConfig", () => {
   });
 });
 
-describe("startStripeCheckout", () => {
-  it("posts the plan to /billing/stripe/checkout and returns Stripe's URL", async () => {
-    mockFetchOnce(200, { url: "https://checkout.stripe.com/c/pay/cs_test_1", session_id: "cs_test_1" });
+describe("startCheckout", () => {
+  it("posts the plan to /billing/checkout and returns the payment page URL", async () => {
+    mockFetchOnce(200, { url: "https://pay.crmscoring.com/pay/cs_test_1", session_id: "cs_test_1" });
 
-    await expect(startStripeCheckout("pro", "annual")).resolves.toMatchObject({
-      url: "https://checkout.stripe.com/c/pay/cs_test_1",
+    await expect(startCheckout("pro", "annual")).resolves.toMatchObject({
+      url: "https://pay.crmscoring.com/pay/cs_test_1",
     });
 
     const [url, options] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/billing/stripe/checkout");
+    expect(url).toContain("/billing/checkout");
     expect(options?.method).toBe("POST");
     expect(JSON.parse(options?.body as string)).toEqual({ tier: "pro", interval: "annual", source: "app" });
   });
 });
 
-describe("confirmStripeCheckout", () => {
-  it("gets /billing/stripe/session/<id> and returns the result", async () => {
+describe("confirmCheckout", () => {
+  it("gets /billing/session/<id> and returns the result", async () => {
     mockFetchOnce(200, { status: "duplicate" });
 
-    await expect(confirmStripeCheckout("cs_test_1")).resolves.toEqual({ status: "duplicate" });
+    await expect(confirmCheckout("cs_test_1")).resolves.toEqual({ status: "duplicate" });
 
     const [url] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/billing/stripe/session/cs_test_1");
+    expect(url).toContain("/billing/session/cs_test_1");
   });
 
   it("surfaces an unpaid session's message", async () => {
     mockFetchOnce(409, { detail: "This payment isn't complete yet." });
 
-    await expect(confirmStripeCheckout("cs_test_1")).rejects.toThrow("This payment isn't complete yet.");
+    await expect(confirmCheckout("cs_test_1")).rejects.toThrow("This payment isn't complete yet.");
   });
 });
 

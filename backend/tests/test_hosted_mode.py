@@ -98,43 +98,42 @@ def test_subscribing_upgrades_the_workspace_and_cancelling_downgrades_it(client,
     tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
     sessions = []
 
-    def create_session(**params):
+    def create_checkout(**params):
         sessions.append(params)
-        return {"id": "cs_test_9", "url": "https://checkout.stripe.com/c/pay/cs_test_9"}
+        return {"id": "cs_9", "url": "https://pay.crmscoring.com/pay/cs_9"}
 
-    def retrieve_session(session_id, expand=None):
-        metadata = sessions[0]["subscription_data"]["metadata"]
-        subscription = {
-            "id": "sub9",
-            "status": "active",
-            "metadata": metadata,
-            "items": {"data": [{"current_period_end": 1_790_000_000}]},
-            "customer": {"id": "cus_9", "email": None},
-        }
-        return {"id": session_id, "mode": "subscription", "status": "complete", "payment_status": "paid",
-                "customer_details": {"email": "jane@example.com"}, "subscription": subscription}
-
-    fake = SimpleNamespace(checkout=SimpleNamespace(Session=SimpleNamespace(create=create_session, retrieve=retrieve_session)))
-    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    subscription = lambda: {  # noqa: E731
+        "id": "sub_9",
+        "status": "active",
+        "customer_email": "jane@example.com",
+        "metadata": sessions[0]["metadata"],
+        "current_period_end": 1_790_000_000,
+        "cancel_at_period_end": False,
+    }
+    fake = SimpleNamespace(
+        create_checkout=create_checkout,
+        get_checkout=lambda session_id: {"id": session_id, "mode": "subscription", "status": "complete", "subscription_id": "sub_9"},
+        get_subscription=lambda sub_id: subscription(),
+    )
+    monkeypatch.setattr(billing, "PAYING_SECRET_KEY", "sk_test_x")
     monkeypatch.setattr(billing, "_api", lambda: fake)
-    monkeypatch.setattr(billing, "_price_id", lambda tier, interval: "price_adv_m")
     monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", tmp_path / "issued.jsonl")
     monkeypatch.setattr(billing, "_issue_and_deliver", lambda *args: "key")
 
-    started = client.post("/api/billing/stripe/checkout", headers=headers, json={"tier": "advanced", "interval": "monthly"})
-    assert started.json()["url"].startswith("https://checkout.stripe.com/")
+    started = client.post("/api/billing/checkout", headers=headers, json={"tier": "advanced", "interval": "monthly"})
+    assert started.json()["url"].startswith("https://pay.crmscoring.com/")
     assert sessions[0]["metadata"]["tenant_id"] == tenant.id
-    # Not upgraded until Stripe says it's paid.
+    # Not upgraded until Paying says it's paid.
     assert client.get("/api/license", headers=headers).json()["tier"] == "starter"
 
-    returned = client.get("/api/billing/stripe/session/cs_test_9")
+    returned = client.get("/api/billing/session/cs_9")
 
     assert returned.json()["workspace_upgraded"] is True
     assert client.get("/api/license", headers=headers).json()["tier"] == "advanced"
 
     monkeypatch.setattr(billing, "_parse_webhook", lambda payload, signature: {
-        "type": "customer.subscription.deleted", "data": {"object": {"id": "sub9"}}})
-    client.post("/api/billing/stripe/webhook", content=b"{}", headers={"stripe-signature": "s"})
+        "type": "subscription.canceled", "data": {"object": {"id": "sub_9"}}})
+    client.post("/api/billing/webhook", content=b"{}", headers={"paying-signature": "s"})
 
     assert storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer ")).plan == "starter"
     assert tenant.plan == "starter"
@@ -165,12 +164,11 @@ def _subscribed_workspace(client, monkeypatch, tmp_path, cancel_calls, paid_thro
     tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
     storage.set_tenant_subscription(tenant.id, "pro", "sub7")
     period_end = int(datetime.combine(paid_through, datetime.min.time(), tzinfo=timezone.utc).timestamp())
-    subscription = {"id": "sub7", "status": "active", "items": {"data": [{"current_period_end": period_end}]}}
-    fake = SimpleNamespace(Subscription=SimpleNamespace(
-        retrieve=lambda sub_id: subscription,
-        modify=lambda sub_id, **params: cancel_calls.append(sub_id) or {**subscription, **params},
-    ))
-    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
+    subscription = {"id": "sub7", "status": "active", "current_period_end": period_end}
+    fake = SimpleNamespace(
+        cancel_subscription=lambda sub_id, at_period_end: cancel_calls.append(sub_id) or {**subscription, "cancel_at_period_end": at_period_end},
+    )
+    monkeypatch.setattr(billing, "PAYING_SECRET_KEY", "sk_test_x")
     monkeypatch.setattr(billing, "_api", lambda: fake)
     return headers
 

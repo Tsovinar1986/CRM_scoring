@@ -11,7 +11,7 @@ vi.mock("../api", async (importActual) => {
     ...actual,
     fetchLicenseStatus: vi.fn(),
     fetchBillingConfig: vi.fn(),
-    startStripeCheckout: vi.fn(),
+    startCheckout: vi.fn(),
     startFreeTrial: vi.fn(),
     cancelWorkspaceSubscription: vi.fn(),
   };
@@ -100,10 +100,10 @@ describe("LicenseBanner", () => {
     expect(screen.queryByText(/starter \(free\)/i)).not.toBeInTheDocument();
   });
 
-  it("sends the buyer to Stripe's checkout page for the chosen plan", async () => {
+  it("sends the buyer to the checkout page for the chosen plan", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    vi.mocked(api.startStripeCheckout).mockResolvedValue({ url: "https://checkout.stripe.com/c/pay/cs_test_1" });
+    vi.mocked(api.startCheckout).mockResolvedValue({ url: "https://pay.crmscoring.com/pay/cs_test_1" });
     const assign = vi.fn();
     vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign });
 
@@ -113,8 +113,8 @@ describe("LicenseBanner", () => {
     expect(await screen.findByText(/advanced — \$384\/year/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /continue to secure checkout/i }));
 
-    expect(api.startStripeCheckout).toHaveBeenCalledWith("advanced", "annual");
-    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_test_1"));
+    expect(api.startCheckout).toHaveBeenCalledWith("advanced", "annual");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://pay.crmscoring.com/pay/cs_test_1"));
     vi.restoreAllMocks();
   });
 
@@ -131,13 +131,13 @@ describe("LicenseBanner", () => {
   it("shows why checkout couldn't start and lets the buyer try again", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    vi.mocked(api.startStripeCheckout).mockRejectedValue(new Error("Couldn't connect to Stripe."));
+    vi.mocked(api.startCheckout).mockRejectedValue(new Error("Couldn't connect to the payment service."));
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
     await userEvent.click(await screen.findByRole("button", { name: /continue to secure checkout/i }));
 
-    expect(await screen.findByText("Couldn't connect to Stripe.")).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't connect to the payment service.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /continue to secure checkout/i })).toBeEnabled();
   });
 

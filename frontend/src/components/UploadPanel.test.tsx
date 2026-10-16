@@ -11,7 +11,7 @@ vi.mock("../api", async (importActual) => {
     ...actual,
     uploadLeads: vi.fn(),
     fetchBillingConfig: vi.fn(),
-    startStripeCheckout: vi.fn(),
+    startCheckout: vi.fn(),
   };
 });
 
@@ -69,10 +69,10 @@ describe("UploadPanel", () => {
     expect(screen.queryByText("No valid license found.")).not.toBeInTheDocument();
   });
 
-  it("opens Stripe checkout for the Pro annual plan on the license-expired CTA", async () => {
+  it("opens checkout for the Pro annual plan on the license-expired CTA", async () => {
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
     vi.mocked(api.uploadLeads).mockRejectedValue(new api.LicenseRequiredError("No valid license found."));
-    vi.mocked(api.startStripeCheckout).mockResolvedValue({ url: "https://checkout.stripe.com/c/pay/cs_test_1" });
+    vi.mocked(api.startCheckout).mockResolvedValue({ url: "https://pay.crmscoring.com/pay/cs_test_1" });
     const assign = vi.fn();
     vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign });
 
@@ -83,8 +83,8 @@ describe("UploadPanel", () => {
     expect(await screen.findByText(/pro — \$192\/year/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /continue to secure checkout/i }));
 
-    expect(api.startStripeCheckout).toHaveBeenCalledWith("pro", "annual");
-    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_test_1"));
+    expect(api.startCheckout).toHaveBeenCalledWith("pro", "annual");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://pay.crmscoring.com/pay/cs_test_1"));
     vi.restoreAllMocks();
   });
 });

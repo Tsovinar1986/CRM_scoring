@@ -147,7 +147,7 @@
     </div>
   </footer>
   <script>
-    // Stripe sends buyers here with ?session_id=<checkout session>; confirm it
+    // Checkout sends buyers here with ?session_id=<checkout session>; confirm it
     // with the backend and show the key right away (it's emailed too).
     // ?status=pending|failed is still understood for old links.
     var API_BASE = "https://ai-lead-generation-scoring.onrender.com/api";
@@ -157,7 +157,7 @@
     var sessionId = params.get("session_id");
     if (sessionId) {
       message.textContent = "Confirming your payment…";
-      fetch(API_BASE + "/billing/stripe/session/" + encodeURIComponent(sessionId)).then(function (res) {
+      fetch(API_BASE + "/billing/session/" + encodeURIComponent(sessionId)).then(function (res) {
         return res.json().catch(function () { return {}; }).then(function (body) {
           if (!res.ok) throw new Error(body.detail || "Couldn't confirm the payment.");
           return body;

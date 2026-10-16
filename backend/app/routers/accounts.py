@@ -42,7 +42,7 @@ from ..licensing import verify_license
 from ..middleware import limiter
 from ..services.password import hash_password, validate_password_strength, verify_password
 from ..services.reset_email import send_password_reset_email
-from .billing import cancel_at_stripe
+from .billing import cancel_subscription
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -253,12 +253,12 @@ def change_password(
 @limiter.limit(RATE_LIMIT_AUTH)
 def delete_me(request: Request, payload: DeleteAccountRequest, tenant: storage.Tenant = Depends(get_current_tenant)):
     """Permanently deletes the workspace: its leads, alerts and login. A paid
-    subscription is cancelled at Stripe first -- if that fails nothing is
+    subscription is cancelled with Paying first -- if that fails nothing is
     deleted, so an account can never vanish while it's still being billed."""
     account = _account(tenant)
     _require_password(account, payload.password)
     if account["subscription_id"]:
-        cancel_at_stripe(account["subscription_id"], immediately=True)
+        cancel_subscription(account["subscription_id"], immediately=True)
     storage.delete_tenant(tenant.id)
     logger.info("Deleted workspace {} ({})", tenant.id, account["email"] or "free trial")
     return {"status": "deleted"}

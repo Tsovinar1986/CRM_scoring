@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { confirmStripeCheckout } from "../api";
+import { confirmCheckout } from "../api";
 import { TIER_LABEL } from "../plans";
 import type { SubscriptionActivation } from "../types";
 
@@ -12,7 +12,7 @@ function checkoutSessionFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("checkout");
 }
 
-// Stripe sends the buyer back to /?checkout=<session id> after paying. This
+// The buyer comes back to /?checkout=<session id> after paying. This
 // confirms the payment, shows the outcome (workspace upgraded, or the license
 // key for a self-hosted install) and then drops the id from the URL.
 export function CheckoutReturn({ onDone }: { onDone: () => void }) {
@@ -23,7 +23,7 @@ export function CheckoutReturn({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
-    confirmStripeCheckout(sessionId).then(
+    confirmCheckout(sessionId).then(
       (result) => !cancelled && setPhase({ kind: "done", result }),
       (err) =>
         !cancelled &&

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { startStripeCheckout } from "../api";
+import { startCheckout } from "../api";
 import { TIER_LABEL } from "../plans";
 import type { BillingConfig, BillingInterval, PaidTier } from "../types";
 
@@ -15,10 +15,11 @@ function priceFor(config: BillingConfig, tier: PaidTier, interval: BillingInterv
   return interval === "annual" ? config.price_annual : config.price_monthly;
 }
 
-// Payment happens on Stripe's own checkout page: this sends the buyer there,
-// and Stripe sends them back to /?checkout=<session id> once they've paid
-// (see CheckoutReturn). Card details never touch our servers.
-export function StripeSubscribe({ config, tier, interval, onClose }: Props) {
+// Payment happens on Paying's checkout page (card details go on the bank's
+// own page): this sends the buyer there, and they come back to
+// /?checkout=<session id> once they've paid (see CheckoutReturn). Card
+// details never touch our servers.
+export function Subscribe({ config, tier, interval, onClose }: Props) {
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(
     config.checkout_available ? null : "Checkout isn't configured on this deployment.",
@@ -28,7 +29,7 @@ export function StripeSubscribe({ config, tier, interval, onClose }: Props) {
     setRedirecting(true);
     setError(null);
     try {
-      const { url } = await startStripeCheckout(tier, interval);
+      const { url } = await startCheckout(tier, interval);
       window.location.assign(url);
     } catch (err) {
       setRedirecting(false);
@@ -47,7 +48,7 @@ export function StripeSubscribe({ config, tier, interval, onClose }: Props) {
             {TIER_LABEL[tier]} — {price ? `$${Number(price)}/${period}` : interval}
           </p>
           <p className="text-xs text-text/75">
-            Billed every {period} by card through Stripe. Cancel anytime from Account settings.
+            Billed every {period} by card. Cancel anytime from Account settings.
           </p>
         </div>
         {!redirecting && (
@@ -69,7 +70,7 @@ export function StripeSubscribe({ config, tier, interval, onClose }: Props) {
         </button>
       )}
       {config.environment === "test" && (
-        <p className="mt-2 text-xs text-text/60">Test mode: pay with card 4242 4242 4242 4242, any future date and CVC.</p>
+        <p className="mt-2 text-xs text-text/60">Test mode: no real money is charged.</p>
       )}
     </div>
   );
