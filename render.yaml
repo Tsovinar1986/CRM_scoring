@@ -51,8 +51,10 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      # Live payments go through Paying (ArCa cards via Inecobank, Idram);
+      # set to "stripe" only to demo with a Stripe sandbox key.
       - key: BILLING_PROVIDER
-        sync: false
+        value: paying
       - key: BILLING_CURRENCY
         value: USD
       - key: STOREFRONT_URL
