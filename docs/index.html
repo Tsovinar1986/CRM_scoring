@@ -404,8 +404,16 @@
     var PRICES = { pro: { monthly: "$20/month", annual: "$192/year" }, advanced: { monthly: "$40/month", annual: "$384/year" } };
     var checkoutPlan = null;
     function $(id) { return document.getElementById(id); }
+    // Never leave a button spinning: give up after 45s (the server can take
+    // a while to wake up, but not longer than that).
     function api(path, options) {
-      return fetch(API_BASE + path, options).then(function (res) {
+      var controller = window.AbortController ? new AbortController() : null;
+      var timer = controller && setTimeout(function () { controller.abort(); }, 45000);
+      var opts = Object.assign({}, options || {}, controller ? { signal: controller.signal } : {});
+      return fetch(API_BASE + path, opts).catch(function () {
+        throw new Error("The payment server didn't respond. Please try again in a minute, or email hello@crmscoring.com.");
+      }).then(function (res) {
+        if (timer) clearTimeout(timer);
         return res.json().catch(function () { return {}; }).then(function (body) {
           if (!res.ok) throw new Error(body.detail || body.error || "Something went wrong. Please try again.");
           return body;
@@ -473,6 +481,13 @@
       $("checkout-pay").textContent = "Continue to secure checkout";
       formError("");
       $("checkout").scrollIntoView({ behavior: "smooth", block: "center" });
+      // Say right away if payments aren't switched on yet, rather than after a click.
+      api("/billing/config").then(function (config) {
+        if (!config.checkout_available) {
+          $("checkout-pay").disabled = true;
+          formError("Online payment isn't available yet. Email hello@crmscoring.com and we'll set you up, or start free in the meantime.");
+        }
+      }, function () {});
     }
     function pay() {
       if (!checkoutPlan) return;
