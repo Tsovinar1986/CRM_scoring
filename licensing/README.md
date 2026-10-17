@@ -47,6 +47,26 @@ subscription simply stops receiving new keys.
    has Pay and Decline buttons. Then point `PAYING_URL` and the keys at
    the live Paying server.
 
+## Using Stripe instead
+
+Checkout can run on Stripe instead of Paying, for example for demos in a
+Stripe sandbox (no company needed) or to sell through a company in a
+Stripe-supported country. Nothing else changes: same pages, same license
+keys, same workspace upgrades.
+
+1. Set `STRIPE_SECRET_KEY` (Dashboard -> Developers -> API keys; `sk_test_...`
+   for the sandbox) and `BILLING_PROVIDER=stripe`. Prices are created in
+   Stripe automatically on the first sale of each plan.
+2. Add a webhook (Developers -> Webhooks -> Add endpoint) for
+   `https://<your-backend>/api/billing/stripe/webhook` with the events
+   `checkout.session.completed`, `invoice.paid`,
+   `customer.subscription.updated` and `customer.subscription.deleted`, and
+   set its signing secret as `STRIPE_WEBHOOK_SECRET`.
+3. Test with card `4242 4242 4242 4242`, any future date and any CVC.
+
+`BILLING_PROVIDER=paying` switches back; left empty, whichever provider has
+keys is used (Paying first).
+
 ## How checkout works
 
 Both the app (React frontend) and the storefront (`docs/index.html`) send

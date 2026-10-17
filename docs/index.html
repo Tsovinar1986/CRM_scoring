@@ -370,7 +370,7 @@
           <h3 id="checkout-title">Subscribe</h3>
           <button type="button" class="link-btn" id="checkout-cancel" onclick="closeCheckout()">Cancel</button>
         </div>
-        <p class="fine" id="checkout-fine">Billed by card. You'll enter your card on the bank's secure payment page; your license key is shown and emailed right after.</p>
+        <p class="fine" id="checkout-fine">Billed by card. You'll enter your card on a secure payment page; your license key is shown and emailed right after.</p>
         <p id="checkout-form-error" class="error" hidden></p>
         <button type="button" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" onclick="pay()">Continue to secure checkout</button>
       </div>
@@ -398,7 +398,7 @@
       document.getElementById("toggle-annual").classList.toggle("active", interval === "annual");
       ["pro", "advanced"].forEach(function (tier) { var el = document.getElementById("price-" + tier); el.textContent = interval === "annual" ? (tier === "pro" ? "$192" : "$384") : (tier === "pro" ? "$20" : "$40"); });
     }
-    // Checkout happens on Paying's page (the card goes on the bank's page);
+    // Checkout happens on the payment provider's page (Paying or Stripe);
     // the buyer comes back to thank-you.html?session_id=..., which shows the
     // license key.
     var PRICES = { pro: { monthly: "$20/month", annual: "$192/year" }, advanced: { monthly: "$40/month", annual: "$384/year" } };

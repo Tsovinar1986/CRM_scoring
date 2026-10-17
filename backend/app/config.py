@@ -142,6 +142,17 @@ PAYING_SECRET_KEY = os.getenv("PAYING_SECRET_KEY", "")
 # whsec_... printed alongside it; signs the webhooks Paying sends to
 # https://<backend>/api/billing/webhook. Renewals and cancellations need it.
 PAYING_WEBHOOK_SECRET = os.getenv("PAYING_WEBHOOK_SECRET", "")
+# Stripe, the alternative to Paying (e.g. for demos in Stripe's sandbox, or
+# selling through a company in a Stripe-supported country). sk_test_... or
+# sk_live_... from Dashboard -> Developers -> API keys; the publishable key
+# isn't needed, buyers pay on Stripe's own checkout page.
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+# whsec_... of the endpoint https://<backend>/api/billing/stripe/webhook
+# (Dashboard -> Developers -> Webhooks); renewals and cancellations need it.
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+# Which one checkout uses: "paying" or "stripe". Left empty, it's whichever
+# has keys set (Paying first).
+BILLING_PROVIDER = os.getenv("BILLING_PROVIDER", "").strip().lower()
 # Prices are decimal amounts in BILLING_CURRENCY, sent with each checkout --
 # changing an amount here only affects new subscriptions; existing
 # subscribers stay on theirs. Advanced is functionally identical to Pro

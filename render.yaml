@@ -47,6 +47,12 @@ services:
         sync: false
       - key: PAYING_WEBHOOK_SECRET
         sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: BILLING_PROVIDER
+        sync: false
       - key: BILLING_CURRENCY
         value: USD
       - key: STOREFRONT_URL

@@ -262,7 +262,7 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
             >
               Advanced annual (save 20%)
             </button>
-            {billing?.checkout_available && <span className="text-xs text-text/70">Secure card checkout on the bank's page</span>}
+            {billing?.checkout_available && <span className="text-xs text-text/70">Secure card checkout</span>}
           </>
         )}
       </div>

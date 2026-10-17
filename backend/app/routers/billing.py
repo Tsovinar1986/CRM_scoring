@@ -1,4 +1,5 @@
-"""Subscriptions and license delivery for the seller storefront, through Paying.
+"""Subscriptions and license delivery for the seller storefront, through
+Paying or Stripe (BILLING_PROVIDER picks; unset, whichever has keys).
 
 Paying is our self-hosted payment service (the separate `paying` project)
 on top of Armenian providers -- ArCa cards via an Armenian bank,
@@ -12,6 +13,10 @@ servers (they're entered on the bank's page). A fresh key is issued for
 every paid billing period (via the payment.succeeded webhook), each one
 valid a little past the next billing date -- so a cancelled subscription
 simply stops getting fresh keys.
+
+Stripe goes through services/stripe_billing.py, which speaks the Paying
+client's interface, so everything below works the same for both; only the
+webhook differs (/webhook for Paying, /stripe/webhook for Stripe).
 """
 
 import json
@@ -33,6 +38,7 @@ from ..auth import get_current_tenant, get_optional_tenant
 from ..config import (
     APP_BASE_URL,
     BILLING_CURRENCY,
+    BILLING_PROVIDER,
     HOSTED_MODE,
     LICENSE_PRIVATE_KEY,
     LICENSE_VALIDITY_DAYS_ANNUAL,
@@ -46,10 +52,13 @@ from ..config import (
     PRICE_PRO_MONTHLY,
     RATE_LIMIT_AUTH,
     STOREFRONT_URL,
+    STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET,
 )
 from ..middleware import limiter
 from ..services.license_email import send_license_email
 from ..services.paying_client import Paying, PayingError, WebhookSignatureError, verify_webhook
+from ..services.stripe_billing import StripeBilling
 
 _LICENSING_DIR = Path(__file__).resolve().parents[3] / "licensing"
 sys.path.insert(0, str(_LICENSING_DIR))
@@ -68,13 +77,25 @@ _PRODUCT_NAMES = {"pro": "CRM Scoring Pro", "advanced": "CRM Scoring Advanced"}
 _PAYING_INTERVALS = {"monthly": "month", "annual": "year"}
 
 
+def _provider() -> Literal["paying", "stripe"]:
+    if BILLING_PROVIDER in ("paying", "stripe"):
+        return BILLING_PROVIDER
+    return "stripe" if STRIPE_SECRET_KEY and not (PAYING_URL and PAYING_SECRET_KEY) else "paying"
+
+
+def _secret_key() -> str:
+    return STRIPE_SECRET_KEY if _provider() == "stripe" else PAYING_SECRET_KEY
+
+
 def _configured() -> bool:
-    return bool(PAYING_URL and PAYING_SECRET_KEY)
+    return bool(STRIPE_SECRET_KEY) if _provider() == "stripe" else bool(PAYING_URL and PAYING_SECRET_KEY)
 
 
-def _api() -> Paying:
+def _api() -> Paying | StripeBilling:
     if not _configured():
         raise HTTPException(status_code=503, detail="Checkout isn't configured on this deployment.")
+    if _provider() == "stripe":
+        return StripeBilling(STRIPE_SECRET_KEY)
     return Paying(PAYING_URL, PAYING_SECRET_KEY)
 
 
@@ -224,7 +245,7 @@ def billing_config():
     return {
         "checkout_available": _configured(),
         "currency": BILLING_CURRENCY,
-        "environment": "live" if PAYING_SECRET_KEY.startswith("sk_live_") else "test",
+        "environment": "live" if _secret_key().startswith(("sk_live_", "rk_live_")) else "test",
         "price_monthly": PRICE_PRO_MONTHLY or None,
         "price_annual": PRICE_PRO_ANNUAL or None,
         "price_advanced_monthly": PRICE_ADVANCED_MONTHLY or None,
@@ -350,8 +371,46 @@ def _parse_webhook(payload: bytes, signature: str) -> dict:
         raise HTTPException(status_code=400, detail="Invalid webhook signature.")
 
 
+@router.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """The same, for Stripe. In the Stripe Dashboard (Developers -> Webhooks)
+    add https://<backend>/api/billing/stripe/webhook for
+    checkout.session.completed, invoice.paid, customer.subscription.updated
+    and customer.subscription.deleted, and set its signing secret as
+    STRIPE_WEBHOOK_SECRET.
+    """
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+    if not signature:
+        raise HTTPException(status_code=400, detail="Missing webhook signature.")
+    # Re-reading the subscription is a blocking Stripe call -- keep it off the event loop.
+    return await run_in_threadpool(_handle_stripe_webhook, payload, signature)
+
+
+def _parse_stripe_webhook(payload: bytes, signature: str):
+    if not (STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET):
+        raise HTTPException(status_code=503, detail="Webhooks aren't configured on this deployment.")
+    try:
+        return StripeBilling.parse_webhook(payload, signature, STRIPE_WEBHOOK_SECRET)
+    except Exception:  # ValueError or stripe.SignatureVerificationError
+        raise HTTPException(status_code=400, detail="Invalid webhook signature.")
+
+
+def _handle_stripe_webhook(payload: bytes, signature: str) -> dict:
+    event = _parse_stripe_webhook(payload, signature)
+    translated = _call("handle the webhook", StripeBilling(STRIPE_SECRET_KEY).translate_event, event)
+    if translated is None:
+        logger.info("Stripe {} ignored", event["type"])
+        return {"status": "ignored"}
+    return _handle_event(translated)
+
+
 def _handle_webhook(payload: bytes, signature: str) -> dict:
-    event = _parse_webhook(payload, signature)
+    return _handle_event(_parse_webhook(payload, signature))
+
+
+def _handle_event(event: dict) -> dict:
+    """A verified Paying event (or a Stripe one translated to it)."""
     kind = event["type"]
     obj = event["data"]["object"]
 
