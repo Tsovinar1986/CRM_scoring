@@ -1,4 +1,4 @@
-"""Stripe as the billing provider (services/stripe_billing.py behind routers/billing.py)."""
+"""Stripe billing (services/stripe_billing.py behind routers/billing.py)."""
 
 import json
 import time
@@ -10,8 +10,7 @@ from fastapi import HTTPException
 
 from app.routers import billing
 from app.services import stripe_billing
-from app.services.paying_client import PayingError
-from app.services.stripe_billing import StripeBilling, subscription_view
+from app.services.stripe_billing import BillingError, StripeBilling, subscription_view
 
 PERIOD_END = 1_790_000_000
 
@@ -87,7 +86,6 @@ def stripe_mode(monkeypatch, tmp_path):
     fake = FakeStripe()
     fake.install(monkeypatch)
     issued = []
-    monkeypatch.setattr(billing, "BILLING_PROVIDER", "stripe")
     monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_top-secret")
     monkeypatch.setattr(billing, "STRIPE_WEBHOOK_SECRET", "whsec_test")
     monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", tmp_path / "issued.jsonl")
@@ -108,20 +106,6 @@ def _stripe_webhook(client, monkeypatch, kind, obj):
     monkeypatch.setattr(billing, "_parse_stripe_webhook", lambda payload, signature: {"type": kind, "data": {"object": obj}})
     return client.post("/api/billing/stripe/webhook", content=b"{}", headers={"stripe-signature": "sig"})
 
-
-def test_provider_follows_the_setting_or_the_keys(monkeypatch):
-    monkeypatch.setattr(billing, "BILLING_PROVIDER", "")
-    monkeypatch.setattr(billing, "PAYING_URL", "")
-    monkeypatch.setattr(billing, "PAYING_SECRET_KEY", "")
-    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
-    assert billing._provider() == "stripe"
-
-    monkeypatch.setattr(billing, "PAYING_URL", "https://pay.example.am")
-    monkeypatch.setattr(billing, "PAYING_SECRET_KEY", "sk_test_y")
-    assert billing._provider() == "paying"
-
-    monkeypatch.setattr(billing, "BILLING_PROVIDER", "stripe")
-    assert billing._provider() == "stripe"
 
 
 def test_config_reports_stripe_checkout(client, stripe_mode):
@@ -264,12 +248,12 @@ def test_webhook_signature_is_checked_by_stripe(monkeypatch, stripe_mode):
     assert exc.value.status_code == 400
 
 
-def test_stripe_errors_become_paying_errors(monkeypatch):
+def test_stripe_errors_become_billing_errors(monkeypatch):
     def boom(*args, **kwargs):
         raise stripe.APIConnectionError("network down")
 
     monkeypatch.setattr(stripe.Subscription, "retrieve", boom)
 
-    with pytest.raises(PayingError) as exc:
+    with pytest.raises(BillingError) as exc:
         StripeBilling("sk_test_x").get_subscription("sub_1")
     assert exc.value.status == 502

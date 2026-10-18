@@ -253,7 +253,7 @@ def change_password(
 @limiter.limit(RATE_LIMIT_AUTH)
 def delete_me(request: Request, payload: DeleteAccountRequest, tenant: storage.Tenant = Depends(get_current_tenant)):
     """Permanently deletes the workspace: its leads, alerts and login. A paid
-    subscription is cancelled with Paying first -- if that fails nothing is
+    subscription is cancelled at Stripe first -- if that fails nothing is
     deleted, so an account can never vanish while it's still being billed."""
     account = _account(tenant)
     _require_password(account, payload.password)

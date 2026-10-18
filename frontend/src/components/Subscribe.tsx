@@ -15,9 +15,7 @@ function priceFor(config: BillingConfig, tier: PaidTier, interval: BillingInterv
   return interval === "annual" ? config.price_annual : config.price_monthly;
 }
 
-// Payment happens on the provider's checkout page -- Paying (card details go
-// on the bank's) or Stripe --
-// own page): this sends the buyer there, and they come back to
+// Payment happens on Stripe's own checkout page: this sends the buyer there, and they come back to
 // /?checkout=<session id> once they've paid (see CheckoutReturn). Card
 // details never touch our servers.
 export function Subscribe({ config, tier, interval, onClose }: Props) {

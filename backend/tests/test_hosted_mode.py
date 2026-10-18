@@ -100,7 +100,7 @@ def test_subscribing_upgrades_the_workspace_and_cancelling_downgrades_it(client,
 
     def create_checkout(**params):
         sessions.append(params)
-        return {"id": "cs_9", "url": "https://pay.crmscoring.com/pay/cs_9"}
+        return {"id": "cs_9", "url": "https://checkout.stripe.com/c/pay/cs_9"}
 
     subscription = lambda: {  # noqa: E731
         "id": "sub_9",
@@ -115,15 +115,15 @@ def test_subscribing_upgrades_the_workspace_and_cancelling_downgrades_it(client,
         get_checkout=lambda session_id: {"id": session_id, "mode": "subscription", "status": "complete", "subscription_id": "sub_9"},
         get_subscription=lambda sub_id: subscription(),
     )
-    monkeypatch.setattr(billing, "PAYING_SECRET_KEY", "sk_test_x")
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
     monkeypatch.setattr(billing, "_api", lambda: fake)
     monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", tmp_path / "issued.jsonl")
     monkeypatch.setattr(billing, "_issue_and_deliver", lambda *args: "key")
 
     started = client.post("/api/billing/checkout", headers=headers, json={"tier": "advanced", "interval": "monthly"})
-    assert started.json()["url"].startswith("https://pay.crmscoring.com/")
+    assert started.json()["url"].startswith("https://checkout.stripe.com/")
     assert sessions[0]["metadata"]["tenant_id"] == tenant.id
-    # Not upgraded until Paying says it's paid.
+    # Not upgraded until Stripe says it's paid.
     assert client.get("/api/license", headers=headers).json()["tier"] == "starter"
 
     returned = client.get("/api/billing/session/cs_9")
@@ -131,9 +131,9 @@ def test_subscribing_upgrades_the_workspace_and_cancelling_downgrades_it(client,
     assert returned.json()["workspace_upgraded"] is True
     assert client.get("/api/license", headers=headers).json()["tier"] == "advanced"
 
-    monkeypatch.setattr(billing, "_parse_webhook", lambda payload, signature: {
-        "type": "subscription.canceled", "data": {"object": {"id": "sub_9"}}})
-    client.post("/api/billing/webhook", content=b"{}", headers={"paying-signature": "s"})
+    monkeypatch.setattr(billing, "_parse_stripe_webhook", lambda payload, signature: {
+        "type": "customer.subscription.deleted", "data": {"object": {"id": "sub_9", "status": "canceled"}}})
+    client.post("/api/billing/stripe/webhook", content=b"{}", headers={"stripe-signature": "s"})
 
     assert storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer ")).plan == "starter"
     assert tenant.plan == "starter"
@@ -168,7 +168,7 @@ def _subscribed_workspace(client, monkeypatch, tmp_path, cancel_calls, paid_thro
     fake = SimpleNamespace(
         cancel_subscription=lambda sub_id, at_period_end: cancel_calls.append(sub_id) or {**subscription, "cancel_at_period_end": at_period_end},
     )
-    monkeypatch.setattr(billing, "PAYING_SECRET_KEY", "sk_test_x")
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_x")
     monkeypatch.setattr(billing, "_api", lambda: fake)
     return headers
 

@@ -56,7 +56,7 @@ export type PlanKey = `${PaidTier}_${BillingInterval}`;
 export interface BillingConfig {
   checkout_available: boolean;
   currency?: string;
-  // "test" while the deployment uses a Paying sandbox key (no real charges).
+  // "test" while the deployment uses a Stripe test-mode key (no real charges).
   environment: "test" | "live";
   price_monthly?: string | null;
   price_annual?: string | null;

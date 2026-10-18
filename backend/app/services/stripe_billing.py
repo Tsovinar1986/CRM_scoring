@@ -1,9 +1,8 @@
-"""Stripe, behind the same interface as the Paying client (paying_client.py).
+"""The Stripe calls behind routers/billing.py.
 
-routers/billing.py talks to whichever provider BILLING_PROVIDER picks. This
-adapter lets it use Stripe without knowing it: it takes the same arguments
-as Paying and returns checkout sessions and subscriptions shaped like
-Paying's, raising PayingError on failure (404 if Stripe doesn't have it).
+Returns checkout sessions and subscriptions as plain dicts in the shape
+billing.py works with, and raises BillingError on failure (404 if Stripe
+doesn't have it).
 
 Buyers pay on Stripe Checkout's hosted page. Prices are created the first
 time a plan is sold and found again by a lookup key that includes the
@@ -14,7 +13,14 @@ import threading
 
 import stripe
 
-from .paying_client import PayingError
+
+
+class BillingError(Exception):
+    def __init__(self, status: int, message: str):
+        super().__init__(f"{status}: {message}")
+        self.status = status
+        self.message = message
+
 
 _STRIPE_INTERVALS = {"month": "month", "year": "year"}
 # Stripe states in which a subscription grants its plan and earns keys.
@@ -34,7 +40,7 @@ def _period_end(subscription) -> int | None:
 
 
 def subscription_view(subscription) -> dict:
-    """A Stripe subscription in the shape Paying uses."""
+    """A Stripe subscription in the shape billing.py uses."""
     customer = subscription.get("customer")
     status = subscription.get("status")
     return {
@@ -68,9 +74,9 @@ class StripeBilling:
         try:
             return fn(*args, **kwargs)
         except stripe.InvalidRequestError as exc:
-            raise PayingError(404 if exc.code == "resource_missing" else 400, exc.user_message or str(exc)) from exc
+            raise BillingError(404 if exc.code == "resource_missing" else 400, exc.user_message or str(exc)) from exc
         except stripe.StripeError as exc:
-            raise PayingError(502, exc.user_message or str(exc)) from exc
+            raise BillingError(502, exc.user_message or str(exc)) from exc
 
     def _price_id(self, amount: int, currency: str, interval: str, name: str, metadata: dict) -> str:
         """The Stripe price for a plan, created the first time it's sold."""
@@ -92,7 +98,7 @@ class StripeBilling:
                     ).id
             return self._price_ids[key]
 
-    # --- The Paying client's interface ---
+    # --- Checkout and subscriptions ---
 
     def create_checkout(
         self,
@@ -106,10 +112,9 @@ class StripeBilling:
         interval: str | None = None,
         customer_email: str | None = None,
         metadata: dict[str, str] | None = None,
-        **_ignored,
-    ) -> dict:
+            ) -> dict:
         if mode != "subscription" or interval not in _STRIPE_INTERVALS:
-            raise PayingError(400, "Only monthly or yearly subscriptions are sold through Stripe.")
+            raise BillingError(400, "Only monthly or yearly subscriptions are sold through Stripe.")
         metadata = metadata or {}
         name = description.split(" (")[0]
         params = {
@@ -158,7 +163,8 @@ class StripeBilling:
         return stripe.Webhook.construct_event(payload, signature, secret)
 
     def translate_event(self, event) -> dict | None:
-        """A Stripe event as the Paying event routers/billing.py handles, or
+        """A Stripe event as the event routers/billing.py handles
+        (payment.succeeded, subscription.updated, subscription.canceled), or
         None if it needs no action."""
         kind = event["type"]
         obj = event["data"]["object"]

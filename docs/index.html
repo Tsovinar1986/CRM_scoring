@@ -398,7 +398,7 @@
       document.getElementById("toggle-annual").classList.toggle("active", interval === "annual");
       ["pro", "advanced"].forEach(function (tier) { var el = document.getElementById("price-" + tier); el.textContent = interval === "annual" ? (tier === "pro" ? "$192" : "$384") : (tier === "pro" ? "$20" : "$40"); });
     }
-    // Checkout happens on the payment provider's page (Paying or Stripe);
+    // Checkout happens on Stripe's page;
     // the buyer comes back to thank-you.html?session_id=..., which shows the
     // license key.
     var PRICES = { pro: { monthly: "$20/month", annual: "$192/year" }, advanced: { monthly: "$40/month", annual: "$384/year" } };

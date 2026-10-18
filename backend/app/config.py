@@ -128,36 +128,22 @@ TRIAL_MAX_LEADS_PER_UPLOAD = int(os.getenv("TRIAL_MAX_LEADS_PER_UPLOAD", "10"))
 # --- Licensing (seller side) ---
 # Only used by routers/billing.py, which the seller runs on their own
 # storefront deployment -- buyers' self-hosted instances never need these.
-# Subscriptions through Paying, our self-hosted payment service on Armenian
-# providers (ArCa cards, Ameriabank, Idram): Pro and Advanced each bill
-# monthly or annually; Starter is free and has none. Every paid period
-# issues a fresh expiring license key. See licensing/README.md for setup.
+# Stripe subscriptions: Pro and Advanced each bill monthly or annually;
+# Starter is free and has none. Every paid period issues a fresh expiring
+# license key. See licensing/README.md for setup.
 LICENSE_PRIVATE_KEY = os.getenv("LICENSE_PRIVATE_KEY", "")
-# Base URL of the Paying server, e.g. https://pay.crmscoring.com.
-PAYING_URL = os.getenv("PAYING_URL", "")
-# sk_test_... (sandbox, no real charges) or sk_live_... -- printed by
-# `python -m paying.cli create-app` on the Paying server. Keep it in .env /
-# the host's secrets.
-PAYING_SECRET_KEY = os.getenv("PAYING_SECRET_KEY", "")
-# whsec_... printed alongside it; signs the webhooks Paying sends to
-# https://<backend>/api/billing/webhook. Renewals and cancellations need it.
-PAYING_WEBHOOK_SECRET = os.getenv("PAYING_WEBHOOK_SECRET", "")
-# Stripe, the alternative to Paying (e.g. for demos in Stripe's sandbox, or
-# selling through a company in a Stripe-supported country). sk_test_... or
-# sk_live_... from Dashboard -> Developers -> API keys; the publishable key
-# isn't needed, buyers pay on Stripe's own checkout page.
+# sk_test_... (test mode, no real charges) or sk_live_... from the Stripe
+# Dashboard -> Developers -> API keys; the publishable key isn't needed,
+# buyers pay on Stripe's own checkout page. Keep it in .env / the host's secrets.
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 # whsec_... of the endpoint https://<backend>/api/billing/stripe/webhook
 # (Dashboard -> Developers -> Webhooks); renewals and cancellations need it.
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-# Which one checkout uses: "paying" or "stripe". Left empty, it's whichever
-# has keys set (Paying first).
-BILLING_PROVIDER = os.getenv("BILLING_PROVIDER", "").strip().lower()
-# Prices are decimal amounts in BILLING_CURRENCY, sent with each checkout --
-# changing an amount here only affects new subscriptions; existing
-# subscribers stay on theirs. Advanced is functionally identical to Pro
-# today, priced higher for agency/multi-client framing. Which currencies the
-# card gateways accept depends on your bank agreement (AMD always works).
+# Prices are decimal amounts in BILLING_CURRENCY. The matching Stripe price
+# is created on the first sale of each plan (found again by a lookup key that
+# includes the amount), so changing an amount only affects new subscriptions.
+# Advanced is functionally identical to Pro today, priced higher for
+# agency/multi-client framing.
 BILLING_CURRENCY = os.getenv("BILLING_CURRENCY", "USD")
 PRICE_PRO_MONTHLY = os.getenv("PRICE_PRO_MONTHLY", "20.00")
 PRICE_PRO_ANNUAL = os.getenv("PRICE_PRO_ANNUAL", "192.00")
@@ -170,7 +156,7 @@ STOREFRONT_URL = os.getenv("STOREFRONT_URL", "https://crmscoring.com")
 # one -- an already-issued offline key can't be revoked, so this bounds
 # how long a cancelled subscriber keeps working. Every renewal issues a
 # fresh key, so the windows only need to run a little past one billing
-# period (to allow for Paying's past-due grace period).
+# period (to allow for Stripe's payment retries).
 LICENSE_VALIDITY_DAYS_MONTHLY = int(os.getenv("LICENSE_VALIDITY_DAYS_MONTHLY", "35"))
 LICENSE_VALIDITY_DAYS_ANNUAL = int(os.getenv("LICENSE_VALIDITY_DAYS_ANNUAL", "380"))
 

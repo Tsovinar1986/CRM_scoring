@@ -41,20 +41,10 @@ services:
       # this deployment's own LICENSE_KEY) is never exposed to them.
       - key: HOSTED_MODE
         value: "true"
-      - key: PAYING_URL
-        sync: false
-      - key: PAYING_SECRET_KEY
-        sync: false
-      - key: PAYING_WEBHOOK_SECRET
-        sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
-      # Live payments go through Paying (ArCa cards via Inecobank, Idram);
-      # set to "stripe" only to demo with a Stripe sandbox key.
-      - key: BILLING_PROVIDER
-        value: paying
       - key: BILLING_CURRENCY
         value: USD
       - key: STOREFRONT_URL

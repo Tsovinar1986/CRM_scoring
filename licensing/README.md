@@ -1,11 +1,9 @@
 # Selling this as a self-hosted product
 
-The seller storefront sells Pro and Advanced as subscriptions through
-Paying, our self-hosted payment service on Armenian providers (ArCa cards
-via an Armenian bank, Ameriabank, Idram). Each plan is billed monthly or
-annually. Starter is free and has no price.
+The seller storefront sells Pro and Advanced as Stripe subscriptions, each
+billed monthly or annually by card. Starter is free and has no price.
 
-After checkout the backend confirms the payment with Paying, signs an
+After checkout the backend confirms the payment with Stripe, signs an
 Ed25519 license key, logs it for idempotency, emails it to the buyer and
 shows it on screen. Every renewal issues and emails a fresh key. Each key
 stays valid a little past the next billing date, so a cancelled
@@ -22,75 +20,56 @@ subscription simply stops receiving new keys.
    Keep `LICENSE_PRIVATE_KEY` only on the seller deployment. Ship the
    corresponding `LICENSE_PUBLIC_KEY` with buyer deployments.
 
-2. Run the Paying server (see its own README) and register this app on it,
-   with the webhook URL. The URL must be public HTTPS:
+2. Get your Stripe secret key (Dashboard -> Developers -> API keys) and set
+   `STRIPE_SECRET_KEY`. Start with the test-mode key (`sk_test_...`). The
+   publishable key isn't needed: buyers pay on Stripe's own checkout page.
 
-   ```sh
-   python -m paying.cli create-app "CRM Scoring" \
-       --webhook https://<your-backend>/api/billing/webhook
-   ```
+3. Nothing to create by hand: the first checkout for each plan creates its
+   Stripe price from `PRICE_*` and `BILLING_CURRENCY` (lookup keys like
+   `crm-scoring-pro-monthly-2000-usd`) and later checkouts reuse it.
 
-   Set `PAYING_URL` to the Paying server's address, and set the printed
-   secret key and webhook secret as `PAYING_SECRET_KEY` and
-   `PAYING_WEBHOOK_SECRET`. A sandbox server issues `sk_test_...` keys;
-   a live one issues `sk_live_...` keys.
+4. Add the webhook. It's needed so renewals issue fresh keys and
+   cancellations reach hosted workspaces. In the Dashboard, go to
+   Developers -> Webhooks -> Add endpoint:
+   - URL: `https://<your-backend>/api/billing/stripe/webhook`. It must be
+     public HTTPS; `localhost` won't work (use `stripe listen --forward-to
+     localhost:8081/api/billing/stripe/webhook` to test locally).
+   - Events: `checkout.session.completed`, `invoice.paid`,
+     `customer.subscription.updated`, `customer.subscription.deleted`.
+   - Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
 
-3. Nothing to create by hand: each checkout sends the amount from
-   `PRICE_*` and `BILLING_CURRENCY`. Which currencies the card gateways
-   accept depends on your bank agreement (AMD always works).
-
-4. Configure SendGrid or SMTP so keys are delivered automatically. Without
+5. Configure SendGrid or SMTP so keys are delivered automatically. Without
    email settings, keys are still appended to
    `licensing/issued_licenses.jsonl` for you to send by hand.
 
-5. Test a full purchase against a sandbox Paying server. Its test bank
-   has Pay and Decline buttons. Then point `PAYING_URL` and the keys at
-   the live Paying server.
-
-## Using Stripe instead
-
-Checkout can run on Stripe instead of Paying, for example for demos in a
-Stripe sandbox (no company needed) or to sell through a company in a
-Stripe-supported country. Nothing else changes: same pages, same license
-keys, same workspace upgrades.
-
-1. Set `STRIPE_SECRET_KEY` (Dashboard -> Developers -> API keys; `sk_test_...`
-   for the sandbox) and `BILLING_PROVIDER=stripe`. Prices are created in
-   Stripe automatically on the first sale of each plan.
-2. Add a webhook (Developers -> Webhooks -> Add endpoint) for
-   `https://<your-backend>/api/billing/stripe/webhook` with the events
-   `checkout.session.completed`, `invoice.paid`,
-   `customer.subscription.updated` and `customer.subscription.deleted`, and
-   set its signing secret as `STRIPE_WEBHOOK_SECRET`.
-3. Test with card `4242 4242 4242 4242`, any future date and any CVC.
-
-`BILLING_PROVIDER=paying` switches back; left empty, whichever provider has
-keys is used (Paying first).
+6. Test a full purchase in test mode with card `4242 4242 4242 4242`, any
+   future expiry and any CVC. Then repeat steps 2 and 4 with your live key
+   and a live-mode webhook. Test and live mode have separate keys, prices
+   and webhooks.
 
 ## How checkout works
 
 Both the app (React frontend) and the storefront (`docs/index.html`) send
-the buyer to Paying's checkout page:
+the buyer to Stripe Checkout:
 
-1. `POST /api/billing/checkout` creates a checkout session for the chosen
-   plan and returns the payment page URL. From inside a hosted workspace,
-   the session remembers that workspace.
+1. `POST /api/billing/checkout` creates a Checkout Session for the chosen
+   plan and returns Stripe's payment page URL. From inside a hosted
+   workspace, the session remembers that workspace.
 2. After paying, the buyer comes back: to the app as
    `/?checkout=<session id>`, or to the storefront's
    `thank-you.html?session_id=<session id>`. That page calls
    `GET /api/billing/session/<id>`, which confirms the payment, upgrades
    the workspace (hosted) and returns the key.
-3. **Webhook** (`POST /api/billing/webhook`): `payment.succeeded` for
-   every renewal, `subscription.updated` / `subscription.canceled` for
-   cancellations, and a fallback if the buyer never made it back from
-   checkout. `subscription.past_due` carries a pay link for the customer.
+3. **Webhook** (`/api/billing/stripe/webhook`): every renewal,
+   cancellations, plus a fallback if the buyer never made it back from
+   checkout.
 
 Each billing period is keyed on the subscription id plus the period's end
-date. The buyer's return and the first payment's webhook therefore share a
+date. The buyer's return and the first invoice's webhook therefore share a
 period and issue only one key.
 
 ## License validity
 
 Keys last `LICENSE_VALIDITY_DAYS_MONTHLY` (default 35) or
 `LICENSE_VALIDITY_DAYS_ANNUAL` (default 380) days. That covers one billing
-period plus Paying's past-due grace period (7 days by default).
+period plus time for Stripe's payment retries.

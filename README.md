@@ -79,7 +79,7 @@ Leads/alerts persist to a local SQLite file (`DATABASE_PATH`, default
   a detail drawer (firmographics, score breakdown, LLM rationale, CRM
   push), and a license/billing banner. `TenantSwitcher` handles
   signup/login/forgot-password for a shared multi-tenant deployment.
-- **`licensing/`** — checkout through Paying (Armenian card/Idram payments) + an offline-verifiable Ed25519 license
+- **`licensing/`** — Stripe checkout + an offline-verifiable Ed25519 license
   key, for selling this app directly as self-hosted software.
 
 See **[DESCRIPTION.md](DESCRIPTION.md)** for the full pipeline architecture
@@ -118,7 +118,7 @@ one — see `.env.example` for what each variable unlocks.
 - **Response headers** (`app/middleware.py`'s `SecurityHeadersMiddleware`):
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
   `Permissions-Policy`, a `Content-Security-Policy` that allows only the app's own
-  origin (checkout happens on Paying's page, so nothing third-party loads), and `Strict-Transport-Security` (only
+  origin (checkout happens on Stripe's page, so nothing third-party loads), and `Strict-Transport-Security` (only
   sent once a request is actually HTTPS). No Node "helmet" package here
   since this is a FastAPI backend — same idea, hand-rolled.
 - **HTTPS**: `FORCE_HTTPS=true` redirects HTTP→HTTPS at the app level for a
