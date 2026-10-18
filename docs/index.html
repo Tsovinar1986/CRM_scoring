@@ -378,12 +378,12 @@
         <p class="fine" id="checkout-fine">Billed by card. You'll enter your card on a secure payment page; your license key is shown and emailed right after.</p>
         <p id="checkout-form-error" class="error" hidden></p>
         <button type="button" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" onclick="pay()">Continue to secure checkout</button>
-        <div class="paypal-alt">
+        <div class="paypal-alt" id="paypal-alt" hidden>
           <p class="fine">Or pay with PayPal. Your license key is emailed to your PayPal address within one business day.</p>
-          <div id="paypal-container-HF5Y9D9UMUBRG"></div>
+          <div id="paypal-button"></div>
           <div class="paypal-qr">
-            <img src="assets/paypal-qr.png" alt="QR code for paying CRM Scoring with PayPal" width="112" height="126" loading="lazy" />
-            <p>Scan with your phone's camera to pay with PayPal, or <a href="https://www.paypal.com/ncp/payment/HF5Y9D9UMUBRG" target="_blank" rel="noopener">open the PayPal payment page</a>.</p>
+            <img id="paypal-qr" src="" alt="QR code for paying CRM Scoring with PayPal" width="112" height="112" loading="lazy" />
+            <p>Scan with your phone's camera to pay with PayPal, or <a id="paypal-link" href="#" target="_blank" rel="noopener">open the PayPal payment page</a>.</p>
           </div>
         </div>
       </div>
@@ -410,6 +410,8 @@
       document.getElementById("toggle-monthly").classList.toggle("active", interval === "monthly");
       document.getElementById("toggle-annual").classList.toggle("active", interval === "annual");
       ["pro", "advanced"].forEach(function (tier) { var el = document.getElementById("price-" + tier); el.textContent = interval === "annual" ? (tier === "pro" ? "$192" : "$384") : (tier === "pro" ? "$20" : "$40"); });
+      // Keep an open checkout box in step with the toggle.
+      if (checkoutPlan) buyPlan(checkoutPlan.tier);
     }
     // Checkout happens on Stripe's page;
     // the buyer comes back to thank-you.html?session_id=..., which shows the
@@ -483,21 +485,43 @@
       });
     }
     function closeCheckout() { $("checkout").hidden = true; checkoutPlan = null; }
-    // PayPal hosted button (set up in the PayPal account). PayPal doesn't tell
-    // our server about these payments, so license keys for them are sent by
-    // hand. The SDK only loads once someone opens checkout.
+    // PayPal hosted buttons, one per plan, set up in the PayPal account
+    // (Pay links & buttons) at the same prices. PayPal doesn't tell our server
+    // about these payments, so their license keys are sent by hand. A plan
+    // without a button here just doesn't offer PayPal. The SDK only loads once
+    // someone opens checkout.
+    var PAYPAL_BUTTONS = {
+      pro: { monthly: "HF5Y9D9UMUBRG", annual: "WJLKZDUZ5JSBQ" },
+      advanced: { monthly: "FDFQ63HNL8SPY", annual: "RLCCRUDA92HU6" }
+    };
     var PAYPAL_SDK = "https://www.paypal.com/sdk/js?client-id=BAAR3jXeS1rBJ-3AMLDPuo5Vjsr1U6EAEAlmyEHbWUzIKFMRlLXqVUAX_YcpG7tiuGwa8JlKEqlbtixuIA&components=hosted-buttons&disable-funding=venmo&currency=USD";
-    var paypalLoaded = false;
-    function showPayPal() {
-      if (paypalLoaded) return;
-      paypalLoaded = true;
-      var script = document.createElement("script");
-      script.src = PAYPAL_SDK;
-      script.onload = function () {
-        window.paypal.HostedButtons({ hostedButtonId: "HF5Y9D9UMUBRG" }).render("#paypal-container-HF5Y9D9UMUBRG");
-      };
-      script.onerror = function () { paypalLoaded = false; };
-      document.head.appendChild(script);
+    var paypalSdk = null;
+    function loadPayPal() {
+      if (!paypalSdk) {
+        paypalSdk = new Promise(function (resolve, reject) {
+          var script = document.createElement("script");
+          script.src = PAYPAL_SDK;
+          script.onload = function () { window.paypal ? resolve(window.paypal) : reject(new Error("PayPal didn't load.")); };
+          script.onerror = function () { paypalSdk = null; reject(new Error("PayPal didn't load.")); };
+          document.head.appendChild(script);
+        });
+      }
+      return paypalSdk;
+    }
+    function showPayPal(tier, interval) {
+      var id = (PAYPAL_BUTTONS[tier] || {})[interval];
+      $("paypal-alt").hidden = !id;
+      $("paypal-button").innerHTML = "";
+      if (!id) return;
+      $("paypal-qr").src = "assets/paypal-qr-" + id + ".png";
+      $("paypal-link").href = "https://www.paypal.com/ncp/payment/" + id;
+      var container = document.createElement("div");
+      container.id = "paypal-container-" + id;
+      $("paypal-button").appendChild(container);
+      loadPayPal().then(function (paypal) {
+        // Only if the buyer hasn't switched plans while PayPal was loading.
+        if (document.getElementById(container.id)) paypal.HostedButtons({ hostedButtonId: id }).render("#" + container.id);
+      }, function () {});
     }
     function buyPlan(tier) {
       clearError();
@@ -510,12 +534,14 @@
       $("checkout-pay").textContent = "Continue to secure checkout";
       formError("");
       $("checkout").scrollIntoView({ behavior: "smooth", block: "center" });
-      showPayPal();
+      showPayPal(tier, currentInterval);
       // Say right away if payments aren't switched on yet, rather than after a click.
       api("/billing/config").then(function (config) {
         if (!config.checkout_available) {
           $("checkout-pay").disabled = true;
-          formError("Card checkout isn't available yet. Pay with PayPal below, or email hello@crmscoring.com.");
+          formError(PAYPAL_BUTTONS[tier] && PAYPAL_BUTTONS[tier][checkoutPlan.interval]
+            ? "Card checkout isn't available yet. Pay with PayPal below, or email hello@crmscoring.com."
+            : "Online payment for this plan isn't available yet. Email hello@crmscoring.com and we'll set you up.");
         }
       }, function () {});
     }
