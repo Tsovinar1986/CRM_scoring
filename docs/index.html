@@ -218,6 +218,11 @@
   }
   .checkout .key { display: block; word-break: break-all; font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; background: var(--accent-bg); color: var(--text-h); padding: 8px 10px; border-radius: 6px; margin: 8px 0; }
   .checkout .error { color: var(--hot); font-size: 0.85rem; }
+  .checkout .paypal-alt { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .checkout .paypal-alt .fine { margin: 0 0 10px; }
+  .checkout .paypal-qr { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+  .checkout .paypal-qr img { width: 112px; height: auto; border-radius: 6px; background: #fff; flex-shrink: 0; }
+  .checkout .paypal-qr p { margin: 0; font-size: 0.82rem; color: var(--text-muted); }
   .checkout button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
   footer { padding: 36px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
@@ -373,6 +378,14 @@
         <p class="fine" id="checkout-fine">Billed by card. You'll enter your card on a secure payment page; your license key is shown and emailed right after.</p>
         <p id="checkout-form-error" class="error" hidden></p>
         <button type="button" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" onclick="pay()">Continue to secure checkout</button>
+        <div class="paypal-alt">
+          <p class="fine">Or pay with PayPal. Your license key is emailed to your PayPal address within one business day.</p>
+          <div id="paypal-container-HF5Y9D9UMUBRG"></div>
+          <div class="paypal-qr">
+            <img src="assets/paypal-qr.png" alt="QR code for paying CRM Scoring with PayPal" width="112" height="126" loading="lazy" />
+            <p>Scan with your phone's camera to pay with PayPal, or <a href="https://www.paypal.com/ncp/payment/HF5Y9D9UMUBRG" target="_blank" rel="noopener">open the PayPal payment page</a>.</p>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -470,6 +483,22 @@
       });
     }
     function closeCheckout() { $("checkout").hidden = true; checkoutPlan = null; }
+    // PayPal hosted button (set up in the PayPal account). PayPal doesn't tell
+    // our server about these payments, so license keys for them are sent by
+    // hand. The SDK only loads once someone opens checkout.
+    var PAYPAL_SDK = "https://www.paypal.com/sdk/js?client-id=BAAR3jXeS1rBJ-3AMLDPuo5Vjsr1U6EAEAlmyEHbWUzIKFMRlLXqVUAX_YcpG7tiuGwa8JlKEqlbtixuIA&components=hosted-buttons&disable-funding=venmo&currency=USD";
+    var paypalLoaded = false;
+    function showPayPal() {
+      if (paypalLoaded) return;
+      paypalLoaded = true;
+      var script = document.createElement("script");
+      script.src = PAYPAL_SDK;
+      script.onload = function () {
+        window.paypal.HostedButtons({ hostedButtonId: "HF5Y9D9UMUBRG" }).render("#paypal-container-HF5Y9D9UMUBRG");
+      };
+      script.onerror = function () { paypalLoaded = false; };
+      document.head.appendChild(script);
+    }
     function buyPlan(tier) {
       clearError();
       closeTrial();
@@ -481,11 +510,12 @@
       $("checkout-pay").textContent = "Continue to secure checkout";
       formError("");
       $("checkout").scrollIntoView({ behavior: "smooth", block: "center" });
+      showPayPal();
       // Say right away if payments aren't switched on yet, rather than after a click.
       api("/billing/config").then(function (config) {
         if (!config.checkout_available) {
           $("checkout-pay").disabled = true;
-          formError("Online payment isn't available yet. Email hello@crmscoring.com and we'll set you up, or start free in the meantime.");
+          formError("Card checkout isn't available yet. Pay with PayPal below, or email hello@crmscoring.com.");
         }
       }, function () {});
     }
