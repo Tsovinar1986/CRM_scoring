@@ -49,7 +49,7 @@ describe("CheckoutReturn", () => {
     render(<CheckoutReturn onDone={vi.fn()} />);
 
     expect(await screen.findByText("LK-123")).toBeInTheDocument();
-    expect(screen.getByText("buyer@example.com")).toBeInTheDocument();
+    expect(screen.getByText(/also emailed to buyer@example\.com/)).toBeInTheDocument();
   });
 
   it("explains when the payment can't be confirmed", async () => {

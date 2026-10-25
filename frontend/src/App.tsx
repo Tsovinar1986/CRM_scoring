@@ -9,6 +9,7 @@ import {
   setTenantApiKey,
 } from "./api";
 import { CheckoutReturn } from "./components/CheckoutReturn";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { GettingStarted } from "./components/GettingStarted";
 import { Logo } from "./components/Logo";
 import { LeadDetail } from "./components/LeadDetail";
@@ -22,6 +23,8 @@ import { AuthPage } from "./pages/AuthPage";
 import { PurchaseComplete } from "./pages/PurchaseComplete";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import type { ScoredLead } from "./types";
+import { useI18n } from "./i18n";
+import type { MessageKey } from "./locales/en";
 
 // crmscoring.com's "Get started free" opens the app with #workspace=<key>
 // for the trial workspace it just created -- keep the key, drop it from the
@@ -36,11 +39,12 @@ function adoptWorkspaceFromUrl() {
 adoptWorkspaceFromUrl();
 
 function LeadScoringApp() {
+  const { t } = useI18n();
   const [leads, setLeads] = useState<ScoredLead[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bucketFilter, setBucketFilter] = useState<"all" | "hot" | "warm" | "cold">("all");
   const [workspaceGeneration, setWorkspaceGeneration] = useState(0);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<MessageKey | null>(null);
   // Hosted deployment with no workspace yet -> the sign-in page instead of
   // the app. null while that's still being checked.
   const [needsAuth, setNeedsAuth] = useState<boolean | null>(getTenantApiKey() ? false : null);
@@ -83,7 +87,7 @@ function LeadScoringApp() {
         // the banner offers a free trial. Only a rejected key is an error.
         if (err instanceof TenantAuthError && getTenantApiKey()) {
           clearTenantApiKey();
-          setAuthError("That workspace key was rejected — disconnected.");
+          setAuthError("app.keyRejected");
           setWorkspaceGeneration((n) => n + 1);
         }
       });
@@ -121,7 +125,7 @@ function LeadScoringApp() {
   if (needsAuth) {
     return (
       <>
-        {authError && <p className="bg-hot-soft px-4 py-2 text-center text-sm text-hot">{authError}</p>}
+        {authError && <p className="bg-hot-soft px-4 py-2 text-center text-sm text-hot">{t(authError)}</p>}
         <AuthPage onSignedIn={handleWorkspaceChange} />
       </>
     );
@@ -143,18 +147,19 @@ function LeadScoringApp() {
               <a href={SITE_URL} className="inline-block">
                 <Logo />
               </a>
-              <p className="mt-1 text-sm text-text/75">Upload leads, get a ranked hybrid score, act on the hot ones.</p>
+              <p className="mt-1 text-sm text-text/75">{t("common.tagline")}</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              <LanguageSwitcher />
               {getTenantApiKey() && (
                 <a href="#account" className="text-sm font-medium text-accent hover:underline">
-                  Account settings
+                  {t("app.accountSettings")}
                 </a>
               )}
               <TenantSwitcher onChange={handleWorkspaceChange} />
             </div>
           </div>
-          {authError && <p className="mt-3 text-sm text-hot">{authError}</p>}
+          {authError && <p className="mt-3 text-sm text-hot">{t(authError)}</p>}
         </header>
 
         {/* Decides for itself whether to show (see LicenseBanner). Keyed on

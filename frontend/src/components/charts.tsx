@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useI18n } from "../i18n";
 
 // Small hand-rolled SVG charts for the scoring overview -- three forms, each
 // matched to its job: a donut for the Hot/Warm/Cold share (part-to-whole,
@@ -80,6 +81,7 @@ function arcPath(cx: number, cy: number, r: number, inner: number, start: number
 }
 
 export function DonutChart({ slices, centerLabel }: { slices: Slice[]; centerLabel: string }) {
+  const { t } = useI18n();
   const [tip, setTip] = useState<TipState | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const total = slices.reduce((sum, s) => sum + s.value, 0);
@@ -103,7 +105,7 @@ export function DonutChart({ slices, centerLabel }: { slices: Slice[]; centerLab
     setTip({
       x,
       y,
-      content: <TipRow color={s.color} value={`${s.value} leads`} label={`${s.label} · ${pct(s.value)}%`} />,
+      content: <TipRow color={s.color} value={t("chart.nLeads", { n: s.value })} label={`${s.label} · ${pct(s.value)}%`} />,
     });
   }
   function hide() {
@@ -119,7 +121,7 @@ export function DonutChart({ slices, centerLabel }: { slices: Slice[]; centerLab
           height={size}
           viewBox={`0 0 ${size} ${size}`}
           role="img"
-          aria-label={`Lead mix: ${slices.map((s) => `${s.label} ${s.value} (${pct(s.value)}%)`).join(", ")}`}
+          aria-label={t("chart.mixAria", { items: slices.map((s) => `${s.label} ${s.value} (${pct(s.value)}%)`).join(", ") })}
         >
           {arcs.length === 1 ? (
             // One bucket holds every lead: a full ring (an arc can't span 360°).
@@ -149,7 +151,7 @@ export function DonutChart({ slices, centerLabel }: { slices: Slice[]; centerLab
                   strokeWidth={2}
                   opacity={active && active !== a.key ? 0.55 : 1}
                   tabIndex={0}
-                  aria-label={`${a.label}: ${a.value} leads, ${pct(a.value)}%`}
+                  aria-label={t("chart.sliceAria", { label: a.label, n: a.value, pct: pct(a.value) })}
                   className="cursor-default outline-none transition-opacity focus-visible:opacity-100"
                   onPointerMove={(e) => show(a, e.nativeEvent.offsetX, e.nativeEvent.offsetY)}
                   onFocus={() => show(a, cx + (r - 6) * Math.sin(mid), cx - (r - 6) * Math.cos(mid))}
@@ -193,6 +195,7 @@ export interface Bar {
 }
 
 export function BarChart({ bars, color }: { bars: Bar[]; color: string }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 420);
   const [tip, setTip] = useState<TipState | null>(null);
@@ -213,7 +216,7 @@ export function BarChart({ bars, color }: { bars: Bar[]; color: string }) {
         <TipRow
           color={color}
           value={`${b.value.toFixed(1)} / ${b.max}`}
-          label={`${b.label} · ${Math.round((b.value / b.max) * 100)}% of max`}
+          label={t("chart.ofMax", { label: b.label, pct: Math.round((b.value / b.max) * 100) })}
         />
       ),
     });
@@ -229,7 +232,7 @@ export function BarChart({ bars, color }: { bars: Bar[]; color: string }) {
         width={width}
         height={height}
         role="img"
-        aria-label={`Average score breakdown: ${bars.map((b) => `${b.label} ${b.value.toFixed(1)} of ${b.max}`).join(", ")}`}
+        aria-label={t("chart.barsAria", { items: bars.map((b) => t("chart.barItem", { label: b.label, value: b.value.toFixed(1), max: b.max })).join(", ") })}
       >
         {/* Baseline, hairline. */}
         <line x1={labelW} x2={labelW} y1={0} y2={height} stroke="var(--color-border)" strokeWidth={1} />
@@ -298,6 +301,7 @@ export function RankedLineChart({
   thresholds: Threshold[];
   color: string;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref, 640);
   const [hover, setHover] = useState<number | null>(null);
@@ -326,7 +330,7 @@ export function RankedLineChart({
         width={width}
         height={height}
         role="img"
-        aria-label={`Scores ranked best to worst for ${n} leads, from ${points[0]?.value.toFixed(0)} down to ${points[n - 1]?.value.toFixed(0)}.`}
+        aria-label={t("chart.rankedAria", { n, top: points[0]?.value.toFixed(0) ?? "", bottom: points[n - 1]?.value.toFixed(0) ?? "" })}
         tabIndex={0}
         className="outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
         onPointerMove={(e) => setHover(nearest(e.nativeEvent.offsetX))}

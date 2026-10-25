@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { resetPassword, setTenantApiKey } from "../api";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { useI18n } from "../i18n";
 
 function LockIcon({ className }: { className?: string }) {
   return (
@@ -14,6 +16,7 @@ function LockIcon({ className }: { className?: string }) {
 // (?token=...), which App.tsx routes here by pathname -- same pattern as
 // PurchaseComplete for /purchase-complete.
 export function ResetPasswordPage() {
+  const { t } = useI18n();
   const token = new URLSearchParams(window.location.search).get("token") ?? "";
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -23,7 +26,7 @@ export function ResetPasswordPage() {
 
   async function handleSubmit() {
     if (password !== confirm) {
-      setError("Passwords don't match.");
+      setError(t("reset.mismatch"));
       return;
     }
     setBusy(true);
@@ -33,7 +36,7 @@ export function ResetPasswordPage() {
       setTenantApiKey(auth.api_key);
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't reset your password.");
+      setError(err instanceof Error ? err.message : t("reset.err"));
     } finally {
       setBusy(false);
     }
@@ -42,58 +45,57 @@ export function ResetPasswordPage() {
   return (
     <div className="min-h-screen font-sans text-text antialiased">
       <div className="animate-fade-in-up mx-auto flex max-w-[440px] flex-col items-center gap-3 px-6 pt-[15vh] text-center">
+        <LanguageSwitcher />
         <div className="w-full rounded-xl border border-border bg-panel p-7 shadow-sm">
           <LockIcon className="mx-auto mb-3 h-12 w-12 text-accent" />
 
           {!token ? (
             <>
-              <h1 className="font-display text-2xl font-semibold text-heading">Invalid reset link</h1>
+              <h1 className="font-display text-2xl font-semibold text-heading">{t("reset.invalid")}</h1>
               <p className="mt-3 text-sm text-text/75">
-                This link is missing its token — request a new one from the app.
+                {t("reset.invalidText")}
               </p>
             </>
           ) : done ? (
             <>
-              <h1 className="font-display text-2xl font-semibold text-heading">Password updated</h1>
+              <h1 className="font-display text-2xl font-semibold text-heading">{t("reset.updated")}</h1>
               <p className="mt-3 text-sm text-text/75">
-                You're signed in to your workspace with the new password.
+                {t("reset.updatedText")}
               </p>
               <a
                 className="mt-5 inline-block rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
                 href="/"
               >
-                Back to the app
+                {t("reset.backToApp")}
               </a>
             </>
           ) : (
             <>
-              <h1 className="font-display text-2xl font-semibold text-heading">Set a new password</h1>
+              <h1 className="font-display text-2xl font-semibold text-heading">{t("reset.title")}</h1>
               <div className="mt-4 flex flex-col gap-2 text-left">
                 <input
                   type="password"
-                  placeholder="New password"
+                  placeholder={t("acct.newPassword")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading outline-none focus:border-accent"
                 />
                 <input
                   type="password"
-                  placeholder="Confirm new password"
+                  placeholder={t("acct.confirmPassword")}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
                   className="w-full rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading outline-none focus:border-accent"
                 />
-                <p className="text-[11px] text-text/60">
-                  8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.
-                </p>
+                <p className="text-[11px] text-text/60">{t("common.passwordRules")}</p>
                 {error && <p className="text-sm text-hot">{error}</p>}
                 <button
                   className="mt-1 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
                   disabled={busy || !password || !confirm}
                   onClick={handleSubmit}
                 >
-                  {busy ? "Updating…" : "Update password"}
+                  {busy ? t("reset.updating") : t("reset.update")}
                 </button>
               </div>
             </>

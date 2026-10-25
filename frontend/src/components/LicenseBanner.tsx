@@ -8,6 +8,7 @@ import {
   startFreeTrial,
 } from "../api";
 import type { BillingConfig, BillingInterval, LicenseStatus, PaidTier } from "../types";
+import { useI18n } from "../i18n";
 import { isNativeApp } from "../nativeApp";
 import { Subscribe } from "./Subscribe";
 
@@ -62,6 +63,7 @@ interface Props {
 }
 
 export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
+  const { t, lang } = useI18n();
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   const [billing, setBilling] = useState<BillingConfig | null>(null);
   const [selected, setSelected] = useState<Selection | null>(null);
@@ -71,7 +73,7 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   async function cancelSubscription() {
-    if (!window.confirm("Cancel your subscription? You'll keep access until the end of the period you've paid for.")) {
+    if (!window.confirm(t("banner.confirmCancel"))) {
       return;
     }
     setCancelling(true);
@@ -80,7 +82,7 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
       await cancelWorkspaceSubscription();
       onWorkspaceChange?.();
     } catch (err) {
-      setCancelError(err instanceof Error ? err.message : "Couldn't cancel. Email hello@crmscoring.com.");
+      setCancelError(err instanceof Error ? err.message : t("banner.errCancel"));
     } finally {
       setCancelling(false);
     }
@@ -94,7 +96,7 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
       setTenantApiKey(auth.api_key);
       onWorkspaceChange?.();
     } catch (err) {
-      setTrialError(err instanceof Error ? err.message : "Couldn't start your trial. Please try again.");
+      setTrialError(err instanceof Error ? err.message : t("auth.errTrial"));
       setStartingTrial(false);
     }
   }
@@ -132,15 +134,12 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft px-5 py-4 text-sm shadow-sm">
         <div>
-          <p className="font-medium text-heading">Try it free — no card, no signup.</p>
-          <p className="text-text/80">
-            Your own private workspace with 10 uploads (up to 10 leads each). Already have an account? Log in at the top
-            right.
-          </p>
+          <p className="font-medium text-heading">{t("banner.tryFree")}</p>
+          <p className="text-text/80">{t("banner.tryFreeText")}</p>
           {trialError && <p className="mt-1 text-hot">{trialError}</p>}
         </div>
         <button className={btnPrimary} disabled={startingTrial} onClick={beginTrial}>
-          {startingTrial ? "Starting…" : "Start free trial"}
+          {startingTrial ? t("banner.starting") : t("auth.startTrial")}
         </button>
       </div>
     );
@@ -154,11 +153,12 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-panel px-5 py-3 text-sm shadow-sm">
         <CheckBadgeIcon className="h-4 w-4 shrink-0 text-accent" />
         <span className="text-text">
-          Licensed to <strong className="text-heading">{status.customer_email}</strong> ({status.tier} plan)
+          {t("banner.licensedTo", { email: status.customer_email ?? "", tier: status.tier })}
           {status.expires_at && (
             <span className="text-text/75">
-              {hostedSubscription ? " — cancelled, active until " : " — renews "}
-              {new Date(status.expires_at * 1000).toLocaleDateString()}
+              {t(hostedSubscription ? "banner.cancelledUntil" : "banner.renews", {
+                date: new Date(status.expires_at * 1000).toLocaleDateString(lang),
+              })}
             </span>
           )}
         </span>
@@ -168,7 +168,7 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
             disabled={cancelling}
             onClick={cancelSubscription}
           >
-            {cancelling ? "Cancelling…" : "Cancel subscription"}
+            {cancelling ? t("banner.cancelling") : t("banner.cancelSubscription")}
           </button>
         )}
         {cancelError && <p className="w-full text-hot">{cancelError}</p>}
@@ -188,38 +188,36 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
         {
           message:
             status.reason === "expired"
-              ? "Your license has expired."
+              ? t("banner.expiredNative")
               : status.reason === "invalid"
-                ? "Your license key couldn't be verified."
+                ? t("banner.invalidNative")
                 : status.reason === "trial_expired"
-                  ? "Your free trial has ended."
+                  ? t("banner.trialEndedNative")
                   : status.trial_uploads_left != null
-                    ? `Starter (free) — ${status.trial_uploads_left} of 10 uploads left.`
-                    : "Running on the free Starter tier.",
+                    ? t("banner.starterLeftNative", { n: status.trial_uploads_left })
+                    : t("banner.starterTier"),
           showBuyButtons: false,
         }
       : status.reason === "expired"
       ? {
-          message: `Your license${status.customer_email ? ` for ${status.customer_email}` : ""} has expired — renew to keep syncing to your CRM/Slack.`,
+          message: status.customer_email ? t("banner.expiredFor", { email: status.customer_email }) : t("banner.expired"),
           showBuyButtons: true,
         }
       : status.reason === "invalid"
         ? {
-            message: "Your license key couldn't be verified — double-check LICENSE_KEY in your .env, or contact support if you believe this is a mistake.",
+            message: t("banner.invalid"),
             showBuyButtons: false,
           }
         : status.reason === "trial_expired"
           ? {
-              message: status.hosted
-                ? "Your free trial has ended — subscribe to keep scoring leads."
-                : "Your free trial has ended — buy a license to keep scoring leads, or sign up for your own workspace (top right) to start fresh.",
+              message: status.hosted ? t("banner.trialEndedHosted") : t("banner.trialEnded"),
               showBuyButtons: true,
             }
           : {
               message:
                 status.trial_uploads_left != null
-                  ? `Starter (free) — ${status.trial_uploads_left} of 10 uploads left. Upgrade to Pro or Advanced for unlimited uploads.`
-                  : "Running on the free Starter tier.",
+                  ? t("banner.starterLeft", { n: status.trial_uploads_left })
+                  : t("banner.starterTier"),
               showBuyButtons: true,
             };
 
@@ -243,26 +241,26 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
         {showBuyButtons && (
           <>
             <button className={btnPrimary} aria-pressed={isSelected("pro", "monthly")} onClick={() => setSelected({ tier: "pro", interval: "monthly" })}>
-              Pro — $20/mo
+              {t("banner.proMonthly")}
             </button>
             <button className={btnPrimary} aria-pressed={isSelected("pro", "annual")} onClick={() => setSelected({ tier: "pro", interval: "annual" })}>
-              Pro annual (save 20%)
+              {t("banner.proAnnual")}
             </button>
             <button
               className={btnSecondary}
               aria-pressed={isSelected("advanced", "monthly")}
               onClick={() => setSelected({ tier: "advanced", interval: "monthly" })}
             >
-              Advanced — $40/mo
+              {t("banner.advancedMonthly")}
             </button>
             <button
               className={btnSecondary}
               aria-pressed={isSelected("advanced", "annual")}
               onClick={() => setSelected({ tier: "advanced", interval: "annual" })}
             >
-              Advanced annual (save 20%)
+              {t("banner.advancedAnnual")}
             </button>
-            {billing?.checkout_available && <span className="text-xs text-text/70">Secure card checkout</span>}
+            {billing?.checkout_available && <span className="text-xs text-text/70">{t("banner.secureCheckout")}</span>}
           </>
         )}
       </div>

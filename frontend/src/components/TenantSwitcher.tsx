@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { clearTenantApiKey, forgotPassword, getTenantApiKey, login, setTenantApiKey, signup } from "../api";
+import { useI18n } from "../i18n";
 
 interface Props {
   onChange: () => void;
@@ -23,6 +24,7 @@ const linkBtn = "bg-transparent text-xs text-accent underline underline-offset-2
 // seller manually running scripts/create_tenant.py; "paste a key" (the
 // original flow) still works too, for tenants provisioned that way.
 export function TenantSwitcher({ onChange }: Props) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("closed");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -56,7 +58,7 @@ export function TenantSwitcher({ onChange }: Props) {
       reset();
       onChange();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't create your workspace.");
+      setError(err instanceof Error ? err.message : t("ts.errCreate"));
     } finally {
       setBusy(false);
     }
@@ -71,7 +73,7 @@ export function TenantSwitcher({ onChange }: Props) {
       reset();
       onChange();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't log in.");
+      setError(err instanceof Error ? err.message : t("auth.errLogin"));
     } finally {
       setBusy(false);
     }
@@ -84,7 +86,7 @@ export function TenantSwitcher({ onChange }: Props) {
       await forgotPassword(email.trim());
       setMode("forgot-sent");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : t("common.somethingWrong"));
     } finally {
       setBusy(false);
     }
@@ -108,14 +110,14 @@ export function TenantSwitcher({ onChange }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         {hasKey ? (
           <>
-            <span className="text-sm text-text/75">Connected to a custom workspace</span>
+            <span className="text-sm text-text/75">{t("ts.connected")}</span>
             <button className={btnSecondary} onClick={handleClear}>
-              Disconnect
+              {t("ts.disconnect")}
             </button>
           </>
         ) : (
           <button className={linkBtn} onClick={() => switchTo("login")}>
-            Log in / Sign up
+            {t("ts.loginSignup")}
           </button>
         )}
       </div>
@@ -126,17 +128,17 @@ export function TenantSwitcher({ onChange }: Props) {
     <div className="w-full max-w-[280px] rounded-lg border border-border bg-panel p-3 shadow-sm">
       {mode === "login" && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-text/70">Log in</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-text/70">{t("auth.logIn")}</h3>
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t("common.email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={inputClasses}
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t("common.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleLogin()}
@@ -145,21 +147,21 @@ export function TenantSwitcher({ onChange }: Props) {
           {error && <p className="text-xs text-hot">{error}</p>}
           <div className="flex items-center gap-2">
             <button className={btnPrimary} disabled={busy || !email || !password} onClick={handleLogin}>
-              {busy ? "Logging in…" : "Log in"}
+              {busy ? t("ts.loggingIn") : t("auth.logIn")}
             </button>
             <button className={btnSecondary} onClick={reset}>
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1">
             <button className={linkBtn} onClick={() => switchTo("signup")}>
-              New here? Sign up
+              {t("ts.newHereSignup")}
             </button>
             <button className={linkBtn} onClick={() => switchTo("forgot")}>
-              Forgot password?
+              {t("auth.forgotPassword")}
             </button>
             <button className={linkBtn} onClick={() => switchTo("paste-key")}>
-              Paste a key instead
+              {t("ts.pasteInstead")}
             </button>
           </div>
         </div>
@@ -167,32 +169,30 @@ export function TenantSwitcher({ onChange }: Props) {
 
       {mode === "signup" && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-text/70">Create a workspace</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-text/70">{t("ts.createWorkspace")}</h3>
           <input
             type="text"
-            placeholder="Company/workspace name"
+            placeholder={t("ts.namePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className={inputClasses}
           />
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t("common.email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={inputClasses}
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t("common.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSignup()}
             className={inputClasses}
           />
-          <p className="text-[11px] text-text/60">
-            8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.
-          </p>
+          <p className="text-[11px] text-text/60">{t("common.passwordRules")}</p>
           {error && <p className="text-xs text-hot">{error}</p>}
           <div className="flex items-center gap-2">
             <button
@@ -200,24 +200,24 @@ export function TenantSwitcher({ onChange }: Props) {
               disabled={busy || !name || !email || !password}
               onClick={handleSignup}
             >
-              {busy ? "Creating…" : "Sign up"}
+              {busy ? t("ts.creating") : t("ts.signUp")}
             </button>
             <button className={btnSecondary} onClick={reset}>
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
           <button className={linkBtn} onClick={() => switchTo("login")}>
-            Already have an account? Log in
+            {t("ts.haveAccountLogin")}
           </button>
         </div>
       )}
 
       {mode === "forgot" && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-text/70">Reset your password</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-text/70">{t("auth.forgot.title")}</h3>
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t("common.email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleForgotPassword()}
@@ -226,10 +226,10 @@ export function TenantSwitcher({ onChange }: Props) {
           {error && <p className="text-xs text-hot">{error}</p>}
           <div className="flex items-center gap-2">
             <button className={btnPrimary} disabled={busy || !email} onClick={handleForgotPassword}>
-              {busy ? "Sending…" : "Send reset link"}
+              {busy ? t("ts.sending") : t("auth.sendResetLink")}
             </button>
             <button className={btnSecondary} onClick={() => switchTo("login")}>
-              Back
+              {t("common.back")}
             </button>
           </div>
         </div>
@@ -238,20 +238,20 @@ export function TenantSwitcher({ onChange }: Props) {
       {mode === "forgot-sent" && (
         <div className="flex flex-col gap-2">
           <p className="text-sm text-text">
-            If that email has an account, a reset link is on its way — check your inbox.
+            {t("ts.resetSent")}
           </p>
           <button className={btnSecondary} onClick={reset}>
-            Done
+            {t("common.done")}
           </button>
         </div>
       )}
 
       {mode === "paste-key" && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-text/70">Paste a workspace key</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-text/70">{t("ts.pasteTitle")}</h3>
           <input
             type="password"
-            placeholder="Paste your workspace API key"
+            placeholder={t("ts.pastePlaceholder")}
             value={pastedKey}
             onChange={(e) => setPastedKey(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handlePasteKey()}
@@ -259,10 +259,10 @@ export function TenantSwitcher({ onChange }: Props) {
           />
           <div className="flex items-center gap-2">
             <button className={btnPrimary} disabled={!pastedKey.trim()} onClick={handlePasteKey}>
-              Connect
+              {t("ts.connect")}
             </button>
             <button className={btnSecondary} onClick={() => switchTo("login")}>
-              Back
+              {t("common.back")}
             </button>
           </div>
         </div>

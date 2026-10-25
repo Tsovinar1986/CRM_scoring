@@ -1,4 +1,6 @@
 import { downloadLeadsCsv } from "../csvExport";
+import { useI18n } from "../i18n";
+import type { MessageKey } from "../locales/en";
 import type { ScoredLead } from "../types";
 
 interface Props {
@@ -9,11 +11,21 @@ interface Props {
   onBucketFilterChange: (bucket: "all" | "hot" | "warm" | "cold") => void;
 }
 
-const BUCKET_LABELS: Record<string, string> = {
-  hot: "Hot",
-  warm: "Warm",
-  cold: "Cold",
+const BUCKET_LABELS: Record<string, MessageKey> = {
+  hot: "bucket.hot",
+  warm: "bucket.warm",
+  cold: "bucket.cold",
 };
+
+const COLUMNS: MessageKey[] = [
+  "table.company",
+  "table.industry",
+  "table.contact",
+  "table.fit",
+  "table.llm",
+  "table.combined",
+  "table.bucket",
+];
 
 const CHIP_ACTIVE_CLASSES: Record<string, string> = {
   all: "border-accent bg-accent-soft text-accent",
@@ -61,6 +73,7 @@ export function LeadsTable({
   onSelect,
   onBucketFilterChange,
 }: Props) {
+  const { t } = useI18n();
   const filtered =
     bucketFilter === "all" ? leads : leads.filter((l) => l.bucket === bucketFilter);
 
@@ -76,7 +89,7 @@ export function LeadsTable({
     <div className="rounded-xl border border-border bg-panel p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-lg font-semibold text-heading">
-          Ranked leads ({filtered.length})
+          {t("table.ranked", { n: filtered.length })}
         </h2>
         <div className="flex flex-wrap items-center gap-1.5">
           {(["all", "hot", "warm", "cold"] as const).map((b) => (
@@ -89,7 +102,7 @@ export function LeadsTable({
               }`}
               onClick={() => onBucketFilterChange(b)}
             >
-              {b === "all" ? "All" : BUCKET_LABELS[b]}
+              {b === "all" ? t("table.all") : t(BUCKET_LABELS[b])}
               {b !== "all" ? ` (${counts[b] ?? 0})` : ""}
             </button>
           ))}
@@ -103,7 +116,7 @@ export function LeadsTable({
               )
             }
           >
-            Download CSV
+            {t("table.downloadCsv")}
           </button>
         </div>
       </div>
@@ -111,19 +124,19 @@ export function LeadsTable({
       {leads.length === 0 ? (
         <div className="mt-6 flex flex-col items-center gap-2 py-8 text-center">
           <InboxIcon className="h-8 w-8 text-text/40" />
-          <p className="text-sm text-text/75">No leads yet — upload a file to get started.</p>
+          <p className="text-sm text-text/75">{t("table.empty")}</p>
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                {["Company", "Industry", "Contact", "Fit", "LLM", "Combined", "Bucket"].map((h) => (
+                {COLUMNS.map((h) => (
                   <th
                     key={h}
                     className="whitespace-nowrap border-b border-border px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-text/70"
                   >
-                    {h}
+                    {t(h)}
                   </th>
                 ))}
               </tr>
@@ -174,7 +187,7 @@ export function LeadsTable({
                       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${BADGE_CLASSES[lead.bucket]}`}
                     >
                       <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASSES[lead.bucket]}`} />
-                      {BUCKET_LABELS[lead.bucket]}
+                      {t(BUCKET_LABELS[lead.bucket])}
                     </span>
                   </td>
                 </tr>

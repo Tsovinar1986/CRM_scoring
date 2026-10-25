@@ -33,7 +33,7 @@ describe("ScoreDashboard", () => {
   it("draws a donut, a bar chart and a line chart, each described for screen readers", () => {
     render(<ScoreDashboard leads={leads} />);
     expect(screen.getByRole("img", { name: /^Lead mix: Hot 1 \(25%\), Warm 2 \(50%\), Cold 1 \(25%\)/ })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /^Average score breakdown: Industry fit 20\.0 of 25/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /^Average score breakdown: Industry match 20\.0 of 25/ })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /^Scores ranked best to worst for 4 leads, from 90 down to 20/ })).toBeInTheDocument();
   });
 

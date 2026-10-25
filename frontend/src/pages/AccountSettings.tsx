@@ -9,7 +9,9 @@ import {
   setTenantApiKey,
   SITE_URL,
 } from "../api";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Logo } from "../components/Logo";
+import { useI18n } from "../i18n";
 import { isNativeApp } from "../nativeApp";
 import type { Account } from "../types";
 
@@ -22,14 +24,8 @@ const btnSecondary =
 const btnDanger =
   "rounded-lg bg-hot px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0";
 
-const PLAN_LABELS: Record<string, string> = {
-  starter: "Starter (free)",
-  pro: "Pro",
-  advanced: "Advanced",
-};
-
-function formatDate(epochSeconds: number): string {
-  return new Date(epochSeconds * 1000).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+function formatDate(epochSeconds: number, lang?: string): string {
+  return new Date(epochSeconds * 1000).toLocaleDateString(lang, { year: "numeric", month: "long", day: "numeric" });
 }
 
 function errorText(err: unknown, fallback: string): string {
@@ -68,6 +64,8 @@ interface Props {
 // The signed-in workspace's settings: profile, plan & billing, password,
 // sign-out, and permanent deletion.
 export function AccountSettings({ onWorkspaceChange }: Props) {
+  const { t, lang } = useI18n();
+  const PLAN_LABELS: Record<string, string> = { starter: t("acct.planStarter"), pro: "Pro", advanced: "Advanced" };
   const [account, setAccount] = useState<Account | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -97,7 +95,7 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
         setAccount(a);
         setName(a.name);
       })
-      .catch((err) => setLoadError(errorText(err, "Couldn't load your account.")));
+      .catch((err) => setLoadError(err instanceof Error ? err.message : ""));
   }
 
   useEffect(load, []);
@@ -108,16 +106,16 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
     try {
       const { name: saved } = await renameAccount(name.trim());
       setAccount((a) => (a ? { ...a, name: saved } : a));
-      setNameStatus({ busy: false, message: "Saved.", error: false });
+      setNameStatus({ busy: false, message: t("acct.saved"), error: false });
     } catch (err) {
-      setNameStatus({ busy: false, message: errorText(err, "Couldn't save."), error: true });
+      setNameStatus({ busy: false, message: errorText(err, t("acct.errSave")), error: true });
     }
   }
 
   async function handleChangePassword(e: FormEvent) {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      setPasswordStatus({ busy: false, message: "The new passwords don't match.", error: true });
+      setPasswordStatus({ busy: false, message: t("acct.mismatch"), error: true });
       return;
     }
     setPasswordStatus({ busy: true, message: null, error: false });
@@ -129,16 +127,16 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
       setConfirmPassword("");
       setPasswordStatus({
         busy: false,
-        message: "Password changed. Any other devices have been signed out.",
+        message: t("acct.passwordChanged"),
         error: false,
       });
     } catch (err) {
-      setPasswordStatus({ busy: false, message: errorText(err, "Couldn't change your password."), error: true });
+      setPasswordStatus({ busy: false, message: errorText(err, t("acct.errPassword")), error: true });
     }
   }
 
   async function handleCancelSubscription() {
-    if (!window.confirm("Cancel your subscription? You'll keep access until the end of the period you've paid for.")) {
+    if (!window.confirm(t("banner.confirmCancel"))) {
       return;
     }
     setCancelling(true);
@@ -147,13 +145,13 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
       const { access_until } = await cancelWorkspaceSubscription();
       setBillingMessage({
         text: access_until
-          ? `Subscription cancelled. You keep your plan until ${formatDate(access_until)}.`
-          : "Subscription cancelled.",
+          ? t("acct.cancelledUntil", { date: formatDate(access_until, lang) })
+          : t("acct.cancelled"),
         error: false,
       });
       load();
     } catch (err) {
-      setBillingMessage({ text: errorText(err, "Couldn't cancel. Email hello@crmscoring.com."), error: true });
+      setBillingMessage({ text: errorText(err, t("banner.errCancel")), error: true });
     } finally {
       setCancelling(false);
     }
@@ -173,35 +171,37 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
       clearTenantApiKey();
       onWorkspaceChange();
     } catch (err) {
-      setDeleteError(errorText(err, "Couldn't delete your account."));
+      setDeleteError(errorText(err, t("acct.errDelete")));
       setDeleting(false);
     }
   }
 
   const header = (
     <div className="mb-6">
-      <a href={SITE_URL} className="mb-5 inline-block">
-        <Logo />
-      </a>
-      <br />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <a href={SITE_URL} className="inline-block">
+          <Logo />
+        </a>
+        <LanguageSwitcher />
+      </div>
       <a href="#" className="text-sm text-accent hover:underline">
-        ← Back to dashboard
+        {t("acct.backToDashboard")}
       </a>
-      <h1 className="mt-2 font-display text-[1.7rem] font-semibold tracking-tight text-heading">Account settings</h1>
+      <h1 className="mt-2 font-display text-[1.7rem] font-semibold tracking-tight text-heading">{t("app.accountSettings")}</h1>
     </div>
   );
 
-  if (loadError) {
+  if (loadError !== null) {
     return (
       <div className="mx-auto max-w-[760px] px-4 py-8 sm:px-6">
         {header}
-        <p className="text-sm text-hot">{loadError}</p>
+        <p className="text-sm text-hot">{loadError || t("acct.errLoad")}</p>
       </div>
     );
   }
   if (!account) return null;
 
-  const planLabel = account.plan ? (PLAN_LABELS[account.plan] ?? account.plan) : "Unlimited";
+  const planLabel = account.plan ? (PLAN_LABELS[account.plan] ?? account.plan) : t("acct.unlimited");
   const canDelete = deleteConfirm === "DELETE" && (!account.has_password || Boolean(deletePassword)) && !deleting;
 
   return (
@@ -209,10 +209,10 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
       {header}
 
       <div className="flex flex-col gap-5">
-        <Section title="Profile">
+        <Section title={t("acct.profile")}>
           <form onSubmit={handleRename} className="flex flex-col gap-3">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-text/80">Workspace name</span>
+              <span className="text-xs font-medium text-text/80">{t("acct.workspaceName")}</span>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input className={inputClasses} value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
                 <button
@@ -220,7 +220,7 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
                   className={`${btnPrimary} shrink-0`}
                   disabled={nameStatus.busy || !name.trim() || name.trim() === account.name}
                 >
-                  {nameStatus.busy ? "Saving…" : "Save"}
+                  {nameStatus.busy ? t("acct.saving") : t("acct.save")}
                 </button>
               </div>
             </label>
@@ -229,37 +229,37 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
             )}
           </form>
           <dl className="mt-3 divide-y divide-border border-t border-border">
-            <Row label="Email">{account.email ?? <span className="text-text/60">None (free-trial workspace)</span>}</Row>
-            <Row label="Member since">{formatDate(account.created_at)}</Row>
+            <Row label={t("common.email")}>{account.email ?? <span className="text-text/60">{t("acct.noEmail")}</span>}</Row>
+            <Row label={t("acct.memberSince")}>{formatDate(account.created_at, lang)}</Row>
           </dl>
         </Section>
 
-        <Section title="Plan & billing">
+        <Section title={t("acct.planBilling")}>
           <dl className="divide-y divide-border">
-            <Row label="Current plan">{planLabel}</Row>
+            <Row label={t("acct.currentPlan")}>{planLabel}</Row>
             {account.uploads_limit !== null && (
-              <Row label="Uploads used">
-                {account.uploads_used} of {account.uploads_limit}
+              <Row label={t("acct.uploadsUsed")}>
+                {t("acct.uploadsOf", { used: account.uploads_used, limit: account.uploads_limit })}
               </Row>
             )}
             {account.plan_expires_at && (
-              <Row label="Access until">
-                {formatDate(account.plan_expires_at)} <span className="text-text/60">(cancelled, won't renew)</span>
+              <Row label={t("acct.accessUntil")}>
+                {formatDate(account.plan_expires_at, lang)} <span className="text-text/60">{t("acct.wontRenew")}</span>
               </Row>
             )}
-            <Row label="Billing">
-              {account.has_subscription ? "Renews automatically" : "No active subscription"}
+            <Row label={t("acct.billing")}>
+              {account.has_subscription ? t("acct.renews") : t("acct.noSubscription")}
             </Row>
           </dl>
           <div className="mt-4 flex flex-wrap gap-2">
             {!isNativeApp() && (account.plan === "starter" || (account.plan_expires_at && !account.has_subscription)) && (
               <a href="#plans" className={btnPrimary}>
-                {account.plan === "starter" ? "Upgrade plan" : "Resubscribe"}
+                {account.plan === "starter" ? t("acct.upgrade") : t("acct.resubscribe")}
               </a>
             )}
             {account.has_subscription && (
               <button type="button" className={btnSecondary} disabled={cancelling} onClick={handleCancelSubscription}>
-                {cancelling ? "Cancelling…" : "Cancel subscription"}
+                {cancelling ? t("banner.cancelling") : t("banner.cancelSubscription")}
               </button>
             )}
           </div>
@@ -269,17 +269,13 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
         </Section>
 
         <Section
-          title="Security"
-          description={
-            account.has_password
-              ? "Changing your password signs out every other device."
-              : "This free-trial workspace has no login. Anyone with this browser can use it until you sign out or delete it."
-          }
+          title={t("acct.security")}
+          description={account.has_password ? t("acct.securityPassword") : t("acct.securityTrial")}
         >
           {account.has_password && (
             <form onSubmit={handleChangePassword} className="flex max-w-sm flex-col gap-3">
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-text/80">Current password</span>
+                <span className="text-xs font-medium text-text/80">{t("acct.currentPassword")}</span>
                 <input
                   className={inputClasses}
                   type="password"
@@ -289,7 +285,7 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-text/80">New password</span>
+                <span className="text-xs font-medium text-text/80">{t("acct.newPassword")}</span>
                 <input
                   className={inputClasses}
                   type="password"
@@ -297,12 +293,10 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
-                <span className="text-xs text-text/60">
-                  8+ characters, with an uppercase letter, a lowercase letter, a number and a symbol.
-                </span>
+                <span className="text-xs text-text/60">{t("common.passwordRules")}</span>
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-text/80">Confirm new password</span>
+                <span className="text-xs font-medium text-text/80">{t("acct.confirmPassword")}</span>
                 <input
                   className={inputClasses}
                   type="password"
@@ -322,33 +316,32 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
                   className={btnPrimary}
                   disabled={passwordStatus.busy || !currentPassword || !newPassword || !confirmPassword}
                 >
-                  {passwordStatus.busy ? "Changing…" : "Change password"}
+                  {passwordStatus.busy ? t("acct.changing") : t("acct.changePassword")}
                 </button>
               </div>
             </form>
           )}
           <div className={account.has_password ? "mt-5 border-t border-border pt-4" : ""}>
             <button type="button" className={btnSecondary} onClick={handleSignOut}>
-              Sign out
+              {t("acct.signOut")}
             </button>
           </div>
         </Section>
 
         <Section
-          title="Delete account"
+          title={t("acct.deleteTitle")}
           danger
-          description="Permanently deletes this workspace, all its scored leads and alerts, and its login. This can't be undone."
+          description={t("acct.deleteDesc")}
         >
           <form onSubmit={handleDelete} className="flex max-w-sm flex-col gap-3">
             {account.has_subscription && (
               <p className="rounded-lg bg-hot-soft px-3 py-2 text-sm text-hot">
-                Your {planLabel} subscription will be cancelled straight away, and you won't be charged again. Within 14
-                days of your first payment you can still email hello@crmscoring.com for a full refund.
+                {t("acct.deleteSubscription", { plan: planLabel })}
               </p>
             )}
             {account.has_password && (
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-text/80">Your password</span>
+                <span className="text-xs font-medium text-text/80">{t("acct.yourPassword")}</span>
                 <input
                   className={inputClasses}
                   type="password"
@@ -359,9 +352,7 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
               </label>
             )}
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-text/80">
-                Type <strong className="font-semibold text-heading">DELETE</strong> to confirm
-              </span>
+              <span className="text-xs font-medium text-text/80">{t("acct.typeDelete")}</span>
               <input
                 className={inputClasses}
                 value={deleteConfirm}
@@ -376,7 +367,7 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
             )}
             <div>
               <button type="submit" className={btnDanger} disabled={!canDelete}>
-                {deleting ? "Deleting…" : "Delete my account"}
+                {deleting ? t("acct.deleting") : t("acct.deleteMine")}
               </button>
             </div>
           </form>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchLicenseStatus, getTenantApiKey } from "../api";
+import { useI18n } from "../i18n";
 import { isNativeApp } from "../nativeApp";
 import type { LicenseStatus, ScoredLead } from "../types";
 
@@ -22,6 +23,7 @@ interface Props {
 // the few hot leads still waiting to be acted on. Once every step is done the
 // checklist steps aside and only the "act on these" list remains.
 export function GettingStarted({ leads, onSelectLead }: Props) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   const hasWorkspace = Boolean(getTenantApiKey());
 
@@ -35,17 +37,17 @@ export function GettingStarted({ leads, onSelectLead }: Props) {
   if (!hasWorkspace || !status) return null;
 
   const steps: Step[] = [
-    { label: "Create your workspace", hint: "You're signed in.", done: true },
+    { label: t("start.createWorkspace"), hint: t("start.signedIn"), done: true },
     {
-      label: "Upload your first leads",
-      hint: "A CSV or XLSX with company name and domain.",
+      label: t("start.uploadFirst"),
+      hint: t("start.uploadHint"),
       done: leads.length > 0,
       href: "#upload",
-      action: "Upload",
+      action: t("start.uploadAction"),
     },
     {
-      label: "Push a hot lead to your CRM",
-      hint: "Open a hot lead and send it to Salesforce.",
+      label: t("start.pushLead"),
+      hint: t("start.pushHint"),
       done: leads.some((l) => l.crm_pushed),
     },
     // The native apps don't sell plans (store billing rules).
@@ -53,11 +55,11 @@ export function GettingStarted({ leads, onSelectLead }: Props) {
       ? []
       : [
           {
-            label: "Upgrade to Pro or Advanced",
-            hint: "Unlimited uploads, CRM sync and Slack alerts.",
+            label: t("start.upgrade"),
+            hint: t("start.upgradeHint"),
             done: status.licensed,
             href: "#plans",
-            action: "See plans",
+            action: t("start.seePlans"),
           },
         ]),
   ];
@@ -75,17 +77,15 @@ export function GettingStarted({ leads, onSelectLead }: Props) {
   return (
     <div className="rounded-xl border border-border bg-panel p-5 shadow-sm">
       <h2 className="font-display text-lg font-semibold text-heading">
-        Welcome{status.customer_email ? `, ${status.customer_email}` : ""}
+        {status.customer_email ? t("start.welcomeEmail", { email: status.customer_email }) : t("start.welcome")}
       </h2>
 
       {!complete && (
         <>
           <div className="mt-3 max-w-sm">
             <div className="mb-1 flex justify-between text-xs text-text/75">
-              <span>Setup</span>
-              <span className="tabular-nums">
-                {doneCount} of {steps.length}
-              </span>
+              <span>{t("start.setup")}</span>
+              <span className="tabular-nums">{t("start.progress", { done: doneCount, total: steps.length })}</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-border">
               <div
@@ -114,7 +114,7 @@ export function GettingStarted({ leads, onSelectLead }: Props) {
                 <div className="min-w-0 flex-1">
                   <div className={`text-sm font-medium ${step.done ? "text-text/60 line-through" : "text-heading"}`}>
                     {step.label}
-                    <span className="sr-only">{step.done ? " (done)" : ""}</span>
+                    <span className="sr-only">{step.done ? t("start.done") : ""}</span>
                   </div>
                   {!step.done && <div className="text-xs text-text/75">{step.hint}</div>}
                 </div>
@@ -131,7 +131,7 @@ export function GettingStarted({ leads, onSelectLead }: Props) {
 
       {toActOn.length > 0 && (
         <div className="mt-5">
-          <h3 className="text-sm font-medium text-heading">Hot leads to act on</h3>
+          <h3 className="text-sm font-medium text-heading">{t("start.hotToActOn")}</h3>
           <ul className="mt-2 divide-y divide-border">
             {toActOn.map((lead) => (
               <li key={lead.id}>

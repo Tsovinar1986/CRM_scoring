@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { SITE_URL, forgotPassword, login, setTenantApiKey, signup, startFreeTrial } from "../api";
 import { Logo } from "../components/Logo";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { useI18n } from "../i18n";
+import type { MessageKey } from "../locales/en";
 import { isNativeApp } from "../nativeApp";
 
 type Mode = "login" | "signup" | "forgot" | "forgot-sent";
@@ -13,11 +16,11 @@ const btnSecondary =
   "w-full rounded-lg border border-border bg-panel px-4 py-2.5 text-sm font-medium text-heading transition-all hover:-translate-y-px hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-50";
 const linkBtn = "bg-transparent text-sm text-accent underline-offset-2 hover:underline";
 
-const TITLES: Record<Mode, { title: string; subtitle: string }> = {
-  login: { title: "Welcome back", subtitle: "Log in to your workspace and pick up where you left off." },
-  signup: { title: "Create your account", subtitle: isNativeApp() ? "Your own private workspace — start free." : "Your own private workspace — start free, upgrade any time." },
-  forgot: { title: "Reset your password", subtitle: "We'll email you a link to choose a new one." },
-  "forgot-sent": { title: "Check your inbox", subtitle: "If that email has an account, a reset link is on its way." },
+const TITLES: Record<Mode, { title: MessageKey; subtitle: MessageKey }> = {
+  login: { title: "auth.login.title", subtitle: "auth.login.subtitle" },
+  signup: { title: "auth.signup.title", subtitle: isNativeApp() ? "auth.signup.subtitleNative" : "auth.signup.subtitle" },
+  forgot: { title: "auth.forgot.title", subtitle: "auth.forgot.subtitle" },
+  "forgot-sent": { title: "auth.forgotSent.title", subtitle: "auth.forgotSent.subtitle" },
 };
 
 interface Props {
@@ -28,6 +31,7 @@ interface Props {
 // workspace yet): log in / create an account on the left, or skip the
 // account entirely with a one-click free trial on the right.
 export function AuthPage({ onSignedIn }: Props) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -58,17 +62,17 @@ export function AuthPage({ onSignedIn }: Props) {
       run(async () => {
         setTenantApiKey((await login(email.trim(), password)).api_key);
         onSignedIn();
-      }, "Couldn't log in.");
+      }, t("auth.errLogin"));
     } else if (mode === "signup") {
       run(async () => {
         setTenantApiKey((await signup(name.trim(), email.trim(), password)).api_key);
         onSignedIn();
-      }, "Couldn't create your account.");
+      }, t("auth.errSignup"));
     } else if (mode === "forgot") {
       run(async () => {
         await forgotPassword(email.trim());
         setMode("forgot-sent");
-      }, "Something went wrong.");
+      }, t("common.somethingWrong"));
     }
   }
 
@@ -76,7 +80,7 @@ export function AuthPage({ onSignedIn }: Props) {
     run(async () => {
       setTenantApiKey((await startFreeTrial()).api_key);
       onSignedIn();
-    }, "Couldn't start your trial. Please try again.");
+    }, t("auth.errTrial"));
   }
 
   const canSubmit =
@@ -92,7 +96,8 @@ export function AuthPage({ onSignedIn }: Props) {
           <a href={SITE_URL}>
             <Logo />
           </a>
-          <p className="text-sm text-text/75">Upload leads, get a ranked score, act on the hot ones.</p>
+          <p className="text-sm text-text/75">{t("common.taglineShort")}</p>
+          <LanguageSwitcher className="mt-3" />
         </header>
 
         <div className="grid items-stretch gap-5 md:grid-cols-[1.15fr_1fr]">
@@ -103,21 +108,21 @@ export function AuthPage({ onSignedIn }: Props) {
             aria-labelledby="auth-title"
           >
             <h1 id="auth-title" className="font-display text-2xl font-semibold tracking-tight text-heading">
-              {TITLES[mode].title}
+              {t(TITLES[mode].title)}
             </h1>
-            <p className="mt-1 text-sm text-text/75">{TITLES[mode].subtitle}</p>
+            <p className="mt-1 text-sm text-text/75">{t(TITLES[mode].subtitle)}</p>
 
             {mode === "forgot-sent" ? (
               <div className="mt-6">
                 <button className={btnSecondary} onClick={() => switchTo("login")}>
-                  Back to log in
+                  {t("auth.backToLogin")}
                 </button>
               </div>
             ) : (
               <form className="mt-6 flex flex-col gap-3" onSubmit={handleSubmit}>
                 {mode === "signup" && (
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-xs font-medium text-text/80">Company or workspace name</span>
+                    <span className="text-xs font-medium text-text/80">{t("auth.workspaceName")}</span>
                     <input
                       className={inputClasses}
                       value={name}
@@ -128,7 +133,7 @@ export function AuthPage({ onSignedIn }: Props) {
                   </label>
                 )}
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-text/80">Email</span>
+                  <span className="text-xs font-medium text-text/80">{t("common.email")}</span>
                   <input
                     className={inputClasses}
                     type="email"
@@ -142,11 +147,11 @@ export function AuthPage({ onSignedIn }: Props) {
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-baseline justify-between">
                       <label htmlFor="auth-password" className="text-xs font-medium text-text/80">
-                        Password
+                        {t("common.password")}
                       </label>
                       {mode === "login" && (
                         <button type="button" className="text-xs text-accent hover:underline" onClick={() => switchTo("forgot")}>
-                          Forgot password?
+                          {t("auth.forgotPassword")}
                         </button>
                       )}
                     </div>
@@ -159,9 +164,7 @@ export function AuthPage({ onSignedIn }: Props) {
                       autoComplete={mode === "signup" ? "new-password" : "current-password"}
                     />
                     {mode === "signup" && (
-                      <span className="text-xs text-text/60">
-                        8+ characters, with an uppercase letter, a lowercase letter, a number and a symbol.
-                      </span>
+                      <span className="text-xs text-text/60">{t("common.passwordRules")}</span>
                     )}
                   </div>
                 )}
@@ -174,34 +177,34 @@ export function AuthPage({ onSignedIn }: Props) {
 
                 <button type="submit" className={`${btnPrimary} mt-1`} disabled={!canSubmit}>
                   {busy
-                    ? "Please wait…"
+                    ? t("auth.pleaseWait")
                     : mode === "login"
-                      ? "Log in"
+                      ? t("auth.logIn")
                       : mode === "signup"
-                        ? "Create account"
-                        : "Send reset link"}
+                        ? t("auth.createAccount")
+                        : t("auth.sendResetLink")}
                 </button>
 
                 <p className="text-center text-sm text-text/75">
                   {mode === "login" && (
                     <>
-                      New here?{" "}
+                      {t("auth.newHere")}{" "}
                       <button type="button" className={linkBtn} onClick={() => switchTo("signup")}>
-                        Create an account
+                        {t("auth.createAnAccount")}
                       </button>
                     </>
                   )}
                   {mode === "signup" && (
                     <>
-                      Already have an account?{" "}
+                      {t("auth.haveAccount")}{" "}
                       <button type="button" className={linkBtn} onClick={() => switchTo("login")}>
-                        Log in
+                        {t("auth.logIn")}
                       </button>
                     </>
                   )}
                   {mode === "forgot" && (
                     <button type="button" className={linkBtn} onClick={() => switchTo("login")}>
-                      Back to log in
+                      {t("auth.backToLogin")}
                     </button>
                   )}
                 </p>
@@ -216,16 +219,16 @@ export function AuthPage({ onSignedIn }: Props) {
             aria-labelledby="trial-title"
           >
             <h2 id="trial-title" className="font-display text-2xl font-semibold tracking-tight text-heading">
-              Just looking?
+              {t("auth.justLooking")}
             </h2>
-            <p className="mt-1 text-sm text-text/80">Skip the account and score a sample list right now.</p>
+            <p className="mt-1 text-sm text-text/80">{t("auth.justLookingText")}</p>
 
             <ul className="mt-6 flex flex-col gap-3 text-sm text-text">
               {[
-                "No email or card needed",
-                "10 uploads, up to 10 leads each",
+                t("auth.perkNoCard"),
+                t("auth.perkUploads"),
                 // The native apps don't sell plans (store billing rules).
-                ...(isNativeApp() ? [] : ["Upgrade to Pro or Advanced from inside the app"]),
+                ...(isNativeApp() ? [] : [t("auth.perkUpgrade")]),
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <span
@@ -241,20 +244,20 @@ export function AuthPage({ onSignedIn }: Props) {
 
             <div className="mt-auto pt-8">
               <button className={btnPrimary} disabled={busy} onClick={handleTrial}>
-                Start free trial
+                {t("auth.startTrial")}
               </button>
             </div>
           </section>
         </div>
 
         <p className="mt-6 text-center text-xs text-text/60">
-          By continuing you agree to the{" "}
+          {t("auth.agreePrefix")}{" "}
           <a className="underline underline-offset-2 hover:text-heading" href={`${SITE_URL}/terms.html`}>
-            Terms
+            {t("auth.terms")}
           </a>{" "}
-          and{" "}
+          {t("auth.and")}{" "}
           <a className="underline underline-offset-2 hover:text-heading" href={`${SITE_URL}/privacy.html`}>
-            Privacy Policy
+            {t("auth.privacy")}
           </a>
           .
         </p>

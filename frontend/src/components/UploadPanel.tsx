@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LicenseRequiredError, TenantAuthError, fetchBillingConfig, uploadLeads } from "../api";
 import type { BillingConfig, BillingInterval, ScoredLead } from "../types";
+import { useI18n } from "../i18n";
 import { isNativeApp } from "../nativeApp";
 import { Subscribe } from "./Subscribe";
 
@@ -33,6 +34,7 @@ function UploadCloudIcon({ className }: { className?: string }) {
 }
 
 export function UploadPanel({ onUploaded }: Props) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function UploadPanel({ onUploaded }: Props) {
       const { leads, trialLimitedRows, trialTotalRows } = await uploadLeads(file);
       if (trialLimitedRows != null && trialTotalRows != null) {
         setTrialLimitNotice(
-          `Trial scores the first ${trialLimitedRows} of ${trialTotalRows} rows${isNativeApp() ? "." : " — upgrade for the full file."}`
+          t(isNativeApp() ? "upload.trialLimited" : "upload.trialLimitedUpgrade", { limited: trialLimitedRows, total: trialTotalRows })
         );
       }
       onUploaded(leads);
@@ -70,10 +72,10 @@ export function UploadPanel({ onUploaded }: Props) {
       } else {
         setError(
           err instanceof TenantAuthError
-            ? "Start a free trial above to upload your leads."
+            ? t("upload.startTrialFirst")
             : err instanceof Error
               ? err.message
-              : "Upload failed"
+              : t("upload.failed")
         );
       }
     } finally {
@@ -112,11 +114,8 @@ export function UploadPanel({ onUploaded }: Props) {
     <div className="rounded-xl border border-border bg-panel p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-lg font-semibold text-heading">Upload leads</h2>
-          <p className="mt-0.5 text-sm text-text/75">
-            CSV or XLSX with at least a company name and domain column. Missing
-            firmographic fields are filled in automatically.
-          </p>
+          <h2 className="font-display text-lg font-semibold text-heading">{t("upload.title")}</h2>
+          <p className="mt-0.5 text-sm text-text/75">{t("upload.subtitle")}</p>
         </div>
       </div>
 
@@ -149,11 +148,11 @@ export function UploadPanel({ onUploaded }: Props) {
           className={`h-8 w-8 transition-colors ${dragActive ? "text-accent" : "text-text/50"}`}
         />
         {busy ? (
-          <p className="text-sm font-medium text-heading">Scoring…</p>
+          <p className="text-sm font-medium text-heading">{t("upload.scoring")}</p>
         ) : (
           <>
             <p className="text-sm font-medium text-heading">
-              Drop a file here, or <span className="text-accent">choose one</span>
+              {t("upload.dropPrefix")} <span className="text-accent">{t("upload.chooseOne")}</span>
             </p>
             {fileName && <p className="text-xs text-text/75">{fileName}</p>}
           </>
@@ -164,14 +163,14 @@ export function UploadPanel({ onUploaded }: Props) {
       {trialLimitNotice && <p className="mt-3 text-sm text-text/75">{trialLimitNotice}</p>}
       {licenseRequired && (
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-sm text-hot">
-          <p>Your trial has expired — a license is required to keep scoring leads.</p>
+          <p>{t("upload.trialExpired")}</p>
           {!isNativeApp() && (
             <>
               <button className={btnPrimary} disabled={busy} onClick={() => setBuyInterval("monthly")}>
-                $20/mo
+                {t("upload.monthly")}
               </button>
               <button className={btnPrimary} disabled={busy} onClick={() => setBuyInterval("annual")}>
-                Buy annual (save 20%)
+                {t("upload.annual")}
               </button>
               {buyInterval && billing && (
                 <Subscribe
