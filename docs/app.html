@@ -32,7 +32,10 @@
         localStorage.removeItem("crmscoring_new_user");
         localStorage.removeItem("crmscoring_chart_type");
       } catch (e) {}
-      var target = key ? APP_URL + "#workspace=" + encodeURIComponent(key) : APP_URL;
+      var lang = null;
+      try { lang = localStorage.getItem("crmscoring_lang"); } catch (e) {}
+      var base = lang ? APP_URL + "?lang=" + encodeURIComponent(lang) : APP_URL;
+      var target = key ? base + "#workspace=" + encodeURIComponent(key) : base;
       document.getElementById("go").href = target;
       window.location.replace(target);
     })();

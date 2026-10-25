@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Log in — CRM Scoring</title>
+<title data-i18n="page.title">Log in — CRM Scoring</title>
 <meta name="description" content="Log in or create a workspace for CRM Scoring." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -116,58 +116,59 @@
         <span class="logo-dots"><span></span><span></span><span></span></span>
         <span class="logo-word">CRM <em>Scoring</em></span>
       </a>
+      <div data-lang-switch></div>
     </header>
   </div>
 
   <main class="center">
     <div class="card rise">
       <div id="panel-login">
-        <h1>Log in</h1>
-        <p class="lede">Access your workspace.</p>
-        <input type="email" id="login-email" placeholder="Email" />
-        <input type="password" id="login-password" placeholder="Password" />
+        <h1 data-i18n="login.title">Log in</h1>
+        <p class="lede" data-i18n="login.lede">Access your workspace.</p>
+        <input type="email" id="login-email" placeholder="Email" data-i18n-placeholder="f.email" />
+        <input type="password" id="login-password" placeholder="Password" data-i18n-placeholder="f.password" />
         <p class="error" id="login-error" style="display:none;"></p>
-        <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">Log in</button>
+        <button class="btn btn-primary" id="login-btn" onclick="handleLogin()" data-i18n="login.btn">Log in</button>
         <div class="links">
-          <button onclick="showPanel('signup')">New here? Sign up</button>
-          <button onclick="showPanel('forgot')">Forgot password?</button>
+          <button onclick="showPanel('signup')" data-i18n="login.toSignup">New here? Sign up</button>
+          <button onclick="showPanel('forgot')" data-i18n="login.forgot">Forgot password?</button>
         </div>
       </div>
 
       <div id="panel-signup" style="display:none;">
-        <h1>Create a workspace</h1>
-        <p class="lede">Score your first leads in a couple of minutes.</p>
-        <input type="text" id="signup-name" placeholder="Company/workspace name" />
-        <input type="email" id="signup-email" placeholder="Email" />
-        <input type="password" id="signup-password" placeholder="Password" />
-        <p class="hint">8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.</p>
+        <h1 data-i18n="signup.title">Create a workspace</h1>
+        <p class="lede" data-i18n="signup.lede">Score your first leads in a couple of minutes.</p>
+        <input type="text" id="signup-name" placeholder="Company/workspace name" data-i18n-placeholder="f.name" />
+        <input type="email" id="signup-email" placeholder="Email" data-i18n-placeholder="f.email" />
+        <input type="password" id="signup-password" placeholder="Password" data-i18n-placeholder="f.password" />
+        <p class="hint" data-i18n="signup.hint">8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.</p>
         <p class="error" id="signup-error" style="display:none;"></p>
-        <button class="btn btn-primary" id="signup-btn" onclick="handleSignup()">Sign up</button>
+        <button class="btn btn-primary" id="signup-btn" onclick="handleSignup()" data-i18n="signup.btn">Sign up</button>
         <div class="links">
-          <button onclick="showPanel('login')">Already have an account? Log in</button>
+          <button onclick="showPanel('login')" data-i18n="signup.toLogin">Already have an account? Log in</button>
         </div>
       </div>
 
       <div id="panel-forgot" style="display:none;">
-        <h1>Reset your password</h1>
-        <p class="lede">We'll email you a reset link.</p>
-        <input type="email" id="forgot-email" placeholder="Email" />
+        <h1 data-i18n="forgot.title">Reset your password</h1>
+        <p class="lede" data-i18n="forgot.lede">We'll email you a reset link.</p>
+        <input type="email" id="forgot-email" placeholder="Email" data-i18n-placeholder="f.email" />
         <p class="error" id="forgot-error" style="display:none;"></p>
-        <button class="btn btn-primary" id="forgot-btn" onclick="handleForgotPassword()">Send reset link</button>
+        <button class="btn btn-primary" id="forgot-btn" onclick="handleForgotPassword()" data-i18n="forgot.btn">Send reset link</button>
         <div class="links">
-          <button onclick="showPanel('login')">Back to log in</button>
+          <button onclick="showPanel('login')" data-i18n="back">Back to log in</button>
         </div>
       </div>
 
       <div id="panel-forgot-sent" style="display:none;">
-        <h1>Check your inbox</h1>
-        <p class="lede">If that email has an account, a reset link is on its way.</p>
-        <button class="btn btn-primary" onclick="showPanel('login')">Back to log in</button>
+        <h1 data-i18n="sent.title">Check your inbox</h1>
+        <p class="lede" data-i18n="sent.lede">If that email has an account, a reset link is on its way.</p>
+        <button class="btn btn-primary" onclick="showPanel('login')" data-i18n="back">Back to log in</button>
       </div>
 
       <div id="panel-key" style="display:none;">
-        <h1>Workspace ready</h1>
-        <p class="lede">Taking you to your workspace…</p>
+        <h1 data-i18n="key.title">Workspace ready</h1>
+        <p class="lede" data-i18n="key.lede">Taking you to your workspace…</p>
       </div>
     </div>
   </main>
@@ -176,6 +177,8 @@
     <div class="wrap">&copy; 2026 CRM Scoring. <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a></div>
   </footer>
 
+  <script>window.PAGE_I18N = {"en": {"page.title": "Log in — CRM Scoring", "login.title": "Log in", "login.lede": "Access your workspace.", "f.email": "Email", "f.password": "Password", "login.btn": "Log in", "login.loggingIn": "Logging in…", "login.toSignup": "New here? Sign up", "login.forgot": "Forgot password?", "signup.title": "Create a workspace", "signup.lede": "Score your first leads in a couple of minutes.", "f.name": "Company/workspace name", "signup.hint": "8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.", "signup.btn": "Sign up", "signup.creating": "Creating…", "signup.toLogin": "Already have an account? Log in", "forgot.title": "Reset your password", "forgot.lede": "We'll email you a reset link.", "forgot.btn": "Send reset link", "forgot.sending": "Sending…", "back": "Back to log in", "sent.title": "Check your inbox", "sent.lede": "If that email has an account, a reset link is on its way.", "key.title": "Workspace ready", "key.lede": "Taking you to your workspace…", "err.generic": "Something went wrong."}, "ru": {"page.title": "Вход — CRM Scoring", "login.title": "Вход", "login.lede": "Войдите в своё рабочее пространство.", "f.email": "Эл. почта", "f.password": "Пароль", "login.btn": "Войти", "login.loggingIn": "Вход…", "login.toSignup": "Впервые здесь? Зарегистрируйтесь", "login.forgot": "Забыли пароль?", "signup.title": "Создайте рабочее пространство", "signup.lede": "Оцените первые лиды за пару минут.", "f.name": "Название компании/пространства", "signup.hint": "Не меньше 8 символов: заглавная и строчная буквы, цифра и спецсимвол.", "signup.btn": "Зарегистрироваться", "signup.creating": "Создание…", "signup.toLogin": "Уже есть аккаунт? Войдите", "forgot.title": "Сброс пароля", "forgot.lede": "Мы отправим вам ссылку для сброса.", "forgot.btn": "Отправить ссылку", "forgot.sending": "Отправка…", "back": "Вернуться ко входу", "sent.title": "Проверьте почту", "sent.lede": "Если на этот адрес есть аккаунт, ссылка для сброса уже в пути.", "key.title": "Рабочее пространство готово", "key.lede": "Открываем ваше рабочее пространство…", "err.generic": "Что-то пошло не так."}, "hy": {"page.title": "Մուտք — CRM Scoring", "login.title": "Մուտք", "login.lede": "Մուտք գործեք ձեր աշխատանքային տարածք։", "f.email": "Էլ. փոստ", "f.password": "Գաղտնաբառ", "login.btn": "Մուտք գործել", "login.loggingIn": "Մուտք է գործում…", "login.toSignup": "Նո՞ր եք։ Գրանցվեք", "login.forgot": "Մոռացե՞լ եք գաղտնաբառը", "signup.title": "Ստեղծեք աշխատանքային տարածք", "signup.lede": "Գնահատեք ձեր առաջին լիդերը մի քանի րոպեում։", "f.name": "Ընկերության/տարածքի անվանումը", "signup.hint": "Առնվազն 8 նիշ՝ մեծատառ, փոքրատառ, թիվ և հատուկ նշան։", "signup.btn": "Գրանցվել", "signup.creating": "Ստեղծվում է…", "signup.toLogin": "Արդեն ունե՞ք հաշիվ։ Մուտք գործեք", "forgot.title": "Վերականգնել գաղտնաբառը", "forgot.lede": "Մենք ձեզ կուղարկենք վերականգնման հղում։", "forgot.btn": "Ուղարկել հղումը", "forgot.sending": "Ուղարկվում է…", "back": "Վերադառնալ մուտքին", "sent.title": "Ստուգեք ձեր փոստը", "sent.lede": "Եթե այդ էլ. հասցեով հաշիվ կա, վերականգնման հղումն արդեն ճանապարհին է։", "key.title": "Աշխատանքային տարածքը պատրաստ է", "key.lede": "Տեղափոխվում եք ձեր աշխատանքային տարածք…", "err.generic": "Ինչ-որ բան սխալ գնաց։"}};</script>
+  <script src="assets/lang.js"></script>
   <script>
     // Same backend as index.html's billing calls -- see index.html for the
     // fuller explanation.
@@ -196,11 +199,11 @@
     async function authRequest(path, body) {
       var res = await fetch(API_BASE + path, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept-Language": crmLang.lang },
         body: JSON.stringify(body),
       });
       var data = await res.json().catch(function () { return null; });
-      if (!res.ok) throw new Error((data && (data.detail || data.error)) || "Something went wrong.");
+      if (!res.ok) throw new Error((data && (data.detail || data.error)) || crmLang.t("err.generic"));
       return data;
     }
 
@@ -212,7 +215,7 @@
       // Lets index.html show Dashboard / Account settings instead of Log in.
       try { localStorage.setItem("crmscoring_signed_in", "1"); } catch (e) {}
       showPanel("key");
-      window.location.href = APP_URL + "#workspace=" + encodeURIComponent(apiKey);
+      window.location.href = crmLang.withLang(APP_URL + "#workspace=" + encodeURIComponent(apiKey));
     }
 
     async function handleLogin() {
@@ -220,7 +223,7 @@
       var password = document.getElementById("login-password").value;
       var btn = document.getElementById("login-btn");
       btn.disabled = true;
-      btn.textContent = "Logging in…";
+      btn.textContent = crmLang.t("login.loggingIn");
       try {
         var auth = await authRequest("/accounts/login", { email: email, password: password });
         enterWorkspace(auth.api_key);
@@ -228,7 +231,7 @@
         showError("login", err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = "Log in";
+        btn.textContent = crmLang.t("login.btn");
       }
     }
 
@@ -238,7 +241,7 @@
       var password = document.getElementById("signup-password").value;
       var btn = document.getElementById("signup-btn");
       btn.disabled = true;
-      btn.textContent = "Creating…";
+      btn.textContent = crmLang.t("signup.creating");
       try {
         var auth = await authRequest("/accounts/signup", { name: name, email: email, password: password });
         enterWorkspace(auth.api_key);
@@ -246,7 +249,7 @@
         showError("signup", err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = "Sign up";
+        btn.textContent = crmLang.t("signup.btn");
       }
     }
 
@@ -254,7 +257,7 @@
       var email = document.getElementById("forgot-email").value.trim();
       var btn = document.getElementById("forgot-btn");
       btn.disabled = true;
-      btn.textContent = "Sending…";
+      btn.textContent = crmLang.t("forgot.sending");
       try {
         await authRequest("/accounts/forgot-password", { email: email });
         showPanel("forgot-sent");
@@ -262,7 +265,7 @@
         showError("forgot", err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = "Send reset link";
+        btn.textContent = crmLang.t("forgot.btn");
       }
     }
   </script>

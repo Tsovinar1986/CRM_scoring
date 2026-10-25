@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Thanks for subscribing — CRM Scoring</title>
+<title data-i18n="page.title">Thanks for subscribing — CRM Scoring</title>
 <meta name="description" content="Your CRM Scoring license key is on its way." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -111,6 +111,7 @@
         <span class="logo-dots"><span></span><span></span><span></span></span>
         <span class="logo-word">CRM <em>Scoring</em></span>
       </a>
+      <div data-lang-switch></div>
     </header>
   </div>
 
@@ -121,18 +122,18 @@
           <path d="m8 12.5 2.5 2.5L16 9.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);" />
         </svg>
       </div>
-      <h1>Thanks for subscribing</h1>
-      <p id="message">Your license key is on its way to the email you paid with.</p>
+      <h1 data-i18n="ty.title">Thanks for subscribing</h1>
+      <p id="message" data-i18n="ty.onItsWay">Your license key is on its way to the email you paid with.</p>
       <code id="license-key" class="license-key" hidden></code>
-      <p>
+      <p data-i18n-html="ty.howTo">
         Add it to your self-hosted deployment's <code>.env</code> as
         <code>LICENSE_KEY</code> (with <code>LICENSE_REQUIRED=true</code>) to unlock
         the full product.
       </p>
-      <p>Don't see it in a minute or two? Check spam, or contact support with the email address you paid with.</p>
+      <p data-i18n="ty.noEmail">Don't see it in a minute or two? Check spam, or contact support with the email address you paid with.</p>
       <div class="actions">
-        <a class="btn btn-primary" href="login.html">Set up a hosted workspace</a>
-        <a class="btn btn-secondary" href="index.html">Back to the site</a>
+        <a class="btn btn-primary" href="login.html" data-i18n="ty.hosted">Set up a hosted workspace</a>
+        <a class="btn btn-secondary" href="index.html" data-i18n="ty.back">Back to the site</a>
       </div>
     </div>
   </main>
@@ -140,12 +141,14 @@
   <footer>
     <div class="wrap">
       &copy; 2026 CRM Scoring. <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a>
-      &nbsp;·&nbsp; <a href="terms.html">Terms</a>
-      &nbsp;·&nbsp; <a href="privacy.html">Privacy</a>
-      &nbsp;·&nbsp; <a href="refunds.html">Refunds</a>
-      &nbsp;·&nbsp; <a href="guardrails.html">AI Guardrails</a>
+      &nbsp;·&nbsp; <a href="terms.html" data-i18n="footer.terms">Terms</a>
+      &nbsp;·&nbsp; <a href="privacy.html" data-i18n="footer.privacy">Privacy</a>
+      &nbsp;·&nbsp; <a href="refunds.html" data-i18n="footer.refunds">Refunds</a>
+      &nbsp;·&nbsp; <a href="guardrails.html" data-i18n="footer.guardrails">AI Guardrails</a>
     </div>
   </footer>
+  <script>window.PAGE_I18N = {"en": {"page.title": "Thanks for subscribing — CRM Scoring", "ty.title": "Thanks for subscribing", "ty.onItsWay": "Your license key is on its way to the email you paid with.", "ty.howTo": "Add it to your self-hosted deployment's <code>.env</code> as <code>LICENSE_KEY</code> (with <code>LICENSE_REQUIRED=true</code>) to unlock the full product.", "ty.noEmail": "Don't see it in a minute or two? Check spam, or contact support with the email address you paid with.", "ty.hosted": "Set up a hosted workspace", "ty.back": "Back to the site", "ty.confirming": "Confirming your payment…", "ty.errConfirm": "Couldn't confirm the payment.", "ty.key": "Your license key:", "ty.keyEmailed": "Your license key (also emailed to {email}):", "ty.ifCharged": "If you were charged, email hello@crmscoring.com and we'll sort it out.", "ty.pending": "Thanks! Your payment is still being confirmed. Your license key will be emailed to you within a few minutes.", "ty.failed": "We couldn't confirm your subscription automatically. If you were charged, email hello@crmscoring.com and we'll sort it out."}, "ru": {"page.title": "Спасибо за подписку — CRM Scoring", "ty.title": "Спасибо за подписку", "ty.onItsWay": "Ключ лицензии отправлен на почту, с которой вы платили.", "ty.howTo": "Добавьте его в файл <code>.env</code> вашего сервера как <code>LICENSE_KEY</code> (вместе с <code>LICENSE_REQUIRED=true</code>), чтобы открыть все функции.", "ty.noEmail": "Письмо не пришло за пару минут? Проверьте спам или напишите в поддержку, указав адрес, с которого платили.", "ty.hosted": "Создать рабочее пространство у нас", "ty.back": "Вернуться на сайт", "ty.confirming": "Подтверждаем оплату…", "ty.errConfirm": "Не удалось подтвердить оплату.", "ty.key": "Ваш ключ лицензии:", "ty.keyEmailed": "Ваш ключ лицензии (также отправлен на {email}):", "ty.ifCharged": "Если деньги списались, напишите на hello@crmscoring.com, и мы всё решим.", "ty.pending": "Спасибо! Оплата ещё подтверждается. Ключ лицензии придёт на почту в течение нескольких минут.", "ty.failed": "Не удалось автоматически подтвердить подписку. Если деньги списались, напишите на hello@crmscoring.com, и мы всё решим."}, "hy": {"page.title": "Շնորհակալություն բաժանորդագրության համար — CRM Scoring", "ty.title": "Շնորհակալություն բաժանորդագրության համար", "ty.onItsWay": "Ձեր լիցենզիայի բանալին ուղարկվում է այն էլ. հասցեին, որով վճարել եք։", "ty.howTo": "Ավելացրեք այն ձեր սերվերի <code>.env</code> ֆայլում որպես <code>LICENSE_KEY</code> (<code>LICENSE_REQUIRED=true</code>-ի հետ)՝ ամբողջական գործառույթները բացելու համար։", "ty.noEmail": "Նամակը մեկ-երկու րոպեում չի՞ եկել։ Ստուգեք սպամը կամ դիմեք աջակցությանը՝ նշելով այն էլ. հասցեն, որով վճարել եք։", "ty.hosted": "Ստեղծել աշխատանքային տարածք մեզ մոտ", "ty.back": "Վերադառնալ կայք", "ty.confirming": "Վճարումը հաստատվում է…", "ty.errConfirm": "Չհաջողվեց հաստատել վճարումը։", "ty.key": "Ձեր լիցենզիայի բանալին՝", "ty.keyEmailed": "Ձեր լիցենզիայի բանալին (ուղարկվել է նաև {email} հասցեին)՝", "ty.ifCharged": "Եթե գումարը գանձվել է, գրեք hello@crmscoring.com հասցեին, և մենք կլուծենք հարցը։", "ty.pending": "Շնորհակալություն։ Վճարումը դեռ հաստատվում է։ Լիցենզիայի բանալին կուղարկվի ձեր էլ. փոստին մի քանի րոպեի ընթացքում։", "ty.failed": "Չհաջողվեց ավտոմատ հաստատել ձեր բաժանորդագրությունը։ Եթե գումարը գանձվել է, գրեք hello@crmscoring.com հասցեին, և մենք կլուծենք հարցը։"}};</script>
+  <script src="assets/lang.js"></script>
   <script>
     // Checkout sends buyers here with ?session_id=<checkout session>; confirm it
     // with the backend and show the key right away (it's emailed too).
@@ -156,27 +159,27 @@
     var keyEl = document.getElementById("license-key");
     var sessionId = params.get("session_id");
     if (sessionId) {
-      message.textContent = "Confirming your payment…";
-      fetch(API_BASE + "/billing/session/" + encodeURIComponent(sessionId)).then(function (res) {
+      message.textContent = crmLang.t("ty.confirming");
+      fetch(API_BASE + "/billing/session/" + encodeURIComponent(sessionId), { headers: { "Accept-Language": crmLang.lang } }).then(function (res) {
         return res.json().catch(function () { return {}; }).then(function (body) {
-          if (!res.ok) throw new Error(body.detail || "Couldn't confirm the payment.");
+          if (!res.ok) throw new Error(body.detail || crmLang.t("ty.errConfirm"));
           return body;
         });
       }).then(function (result) {
         if (result.license_key) {
-          message.textContent = "Your license key" + (result.email && result.email.indexOf("@") > 0 ? " (also emailed to " + result.email + ")" : "") + ":";
+          message.textContent = result.email && result.email.indexOf("@") > 0 ? crmLang.t("ty.keyEmailed", { email: result.email }) : crmLang.t("ty.key");
           keyEl.textContent = result.license_key;
           keyEl.hidden = false;
         } else {
-          message.textContent = "Your license key is on its way to the email you paid with.";
+          message.textContent = crmLang.t("ty.onItsWay");
         }
       }, function (err) {
-        message.textContent = err.message + " If you were charged, email hello@crmscoring.com and we'll sort it out.";
+        message.textContent = err.message + " " + crmLang.t("ty.ifCharged");
       });
     } else if (params.get("status") === "pending") {
-      message.textContent = "Thanks! Your payment is still being confirmed. Your license key will be emailed to you within a few minutes.";
+      message.textContent = crmLang.t("ty.pending");
     } else if (params.get("status") === "failed") {
-      message.textContent = "We couldn't confirm your subscription automatically. If you were charged, email hello@crmscoring.com and we'll sort it out.";
+      message.textContent = crmLang.t("ty.failed");
     }
   </script>
 </body>
