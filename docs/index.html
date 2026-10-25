@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CRM Scoring — AI Lead Scoring, Self-Hosted</title>
-<meta name="description" content="Hybrid rule + LLM lead scoring you self-host. Your CRM data never leaves your infrastructure." />
+<title data-i18n="meta.title">CRM Scoring — AI Lead Scoring, Self-Hosted</title>
+<meta name="description" data-i18n-content="meta.description" content="Hybrid rule + LLM lead scoring you self-host. Your CRM data never leaves your infrastructure." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,440;0,9..144,600;0,9..144,680;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
@@ -105,6 +105,16 @@
   .logo-word em { font-style: normal; color: var(--accent); }
 
   .nav-controls { display: flex; align-items: center; gap: 16px; }
+  /* Language switcher: a pill, the chosen language in ink. */
+  .lang-switch { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-alt); }
+  .lang-switch button {
+    font: inherit; font-size: 0.82rem; font-weight: 500; line-height: 1; min-width: 40px; padding: 7px 11px;
+    border: 0; border-radius: 999px; background: transparent; color: var(--text-muted); cursor: pointer; transition: background 0.15s, color 0.15s;
+  }
+  .lang-switch button:hover { color: var(--text-h); }
+  .lang-switch button[aria-pressed="true"] { background: var(--text-h); color: var(--bg); }
+  .lang-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 640px) { .nav-controls { flex-wrap: wrap; justify-content: flex-end; gap: 10px; } }
   .auth-link { font-size: 0.9rem; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
   .btn {
     display: inline-block; padding: 11px 22px; border-radius: 4px; font-weight: 600;
@@ -238,48 +248,53 @@
         <span class="logo-word">CRM <em>Scoring</em></span>
       </div>
       <div class="nav-controls">
-        <a class="auth-link" id="nav-auth" href="login.html">Log in / Sign up</a>
-        <a class="auth-link" id="nav-dashboard" href="https://ai-lead-generation-scoring.onrender.com/" hidden>Dashboard</a>
-        <a class="auth-link" id="nav-account" href="https://ai-lead-generation-scoring.onrender.com/#account" hidden>Account settings</a>
-        <a class="btn btn-secondary" href="mailto:hello@crmscoring.com">Contact</a>
+        <div class="lang-switch" role="group" aria-label="Language" data-i18n-aria="nav.language">
+          <button type="button" data-lang="en" lang="en" title="English">EN</button>
+          <button type="button" data-lang="ru" lang="ru" title="Русский">RU</button>
+          <button type="button" data-lang="hy" lang="hy" title="Հայերեն">ՀՅ</button>
+        </div>
+        <a class="auth-link" id="nav-auth" href="login.html" data-i18n="nav.login">Log in / Sign up</a>
+        <a class="auth-link" id="nav-dashboard" href="https://ai-lead-generation-scoring.onrender.com/" hidden data-i18n="nav.dashboard">Dashboard</a>
+        <a class="auth-link" id="nav-account" href="https://ai-lead-generation-scoring.onrender.com/#account" hidden data-i18n="nav.account">Account settings</a>
+        <a class="btn btn-secondary" href="mailto:hello@crmscoring.com" data-i18n="nav.contact">Contact</a>
       </div>
     </header>
   </div>
 
   <div class="hero">
     <div class="wrap">
-      <span class="kicker rise" style="animation-delay:0ms;">Self-hosted · hybrid scoring</span>
-      <h1 class="rise" style="animation-delay:60ms;">Score your leads without<br />shipping your data <em>anywhere.</em></h1>
-      <p class="rise" style="animation-delay:130ms;">
+      <span class="kicker rise" style="animation-delay:0ms;" data-i18n="hero.kicker">Self-hosted · hybrid scoring</span>
+      <h1 class="rise" style="animation-delay:60ms;" data-i18n-html="hero.title">Score your leads without<br />shipping your data <em>anywhere.</em></h1>
+      <p class="rise" style="animation-delay:130ms;" data-i18n="hero.text">
         A hybrid rule + LLM lead scorer you self-host. Upload your own CRM
         export, get every account enriched and ranked Hot/Warm/Cold against
         your ideal customer profile — all inside your own infrastructure.
       </p>
       <div class="cta-row rise" style="animation-delay:200ms;">
-        <a class="btn btn-primary" href="#pricing">See pricing</a>
+        <a class="btn btn-primary" href="#pricing" data-i18n="hero.cta">See pricing</a>
       </div>
     </div>
   </div>
 
   <section class="preview" aria-labelledby="preview-title">
     <div class="wrap">
-      <h2 id="preview-title" class="rise" style="animation-delay:260ms;">What you'll see after your first upload</h2>
-      <p class="lede rise" style="animation-delay:300ms;">
+      <h2 id="preview-title" class="rise" style="animation-delay:260ms;" data-i18n="preview.title">What you'll see after your first upload</h2>
+      <p class="lede rise" style="animation-delay:300ms;" data-i18n="preview.lede">
         Every account scored and bucketed, the Hot/Warm/Cold mix at a glance,
         and exactly where your list drops off.
       </p>
       <div class="preview-frame rise" style="animation-delay:340ms;">
-        <div class="preview-bar" aria-hidden="true"><span></span><span></span><span></span><em>Scoring overview</em></div>
+        <div class="preview-bar" aria-hidden="true"><span></span><span></span><span></span><em data-i18n="preview.bar">Scoring overview</em></div>
         <picture>
           <source srcset="assets/dashboard-preview-dark.png" media="(prefers-color-scheme: dark)" />
           <img
             src="assets/dashboard-preview-light.png"
-            width="1600" height="981" loading="lazy"
+            width="1600" height="981" loading="lazy" data-i18n-alt="preview.alt"
             alt="The Scoring overview dashboard for 10 sample leads: totals of 3 Hot, 6 Warm and 1 Cold, a donut of that mix, bars for the average score in each scoring dimension, and a line of every lead's score ranked best to worst against the Hot (75) and Warm (50) cutoffs."
           />
         </picture>
       </div>
-      <p class="preview-caption">Sample data. Your dashboard fills in from your own CRM export.</p>
+      <p class="preview-caption" data-i18n="preview.caption">Sample data. Your dashboard fills in from your own CRM export.</p>
     </div>
   </section>
 
@@ -288,18 +303,18 @@
       <div class="feature-grid">
         <div class="feature">
           <span class="feature-mark"></span>
-          <h3>Self-hosted, always</h3>
-          <p>Runs on your own infra. Your CRM export never touches a third-party server.</p>
+          <h3 data-i18n="f1.title">Self-hosted, always</h3>
+          <p data-i18n="f1.text">Runs on your own infra. Your CRM export never touches a third-party server.</p>
         </div>
         <div class="feature">
           <span class="feature-mark"></span>
-          <h3>Hybrid scoring</h3>
-          <p>Transparent rule-based fit score, plus an LLM rationale that catches what rules miss.</p>
+          <h3 data-i18n="f2.title">Hybrid scoring</h3>
+          <p data-i18n="f2.text">Transparent rule-based fit score, plus an LLM rationale that catches what rules miss.</p>
         </div>
         <div class="feature">
           <span class="feature-mark"></span>
-          <h3>Acts on the hot ones</h3>
-          <p>One-click CRM push and Slack alerts the moment an account crosses your threshold.</p>
+          <h3 data-i18n="f3.title">Acts on the hot ones</h3>
+          <p data-i18n="f3.text">One-click CRM push and Slack alerts the moment an account crosses your threshold.</p>
         </div>
       </div>
     </div>
@@ -307,12 +322,12 @@
 
   <section class="pricing" id="pricing">
     <div class="wrap">
-      <h2>Simple pricing</h2>
-      <p class="lede">Starter is free forever — no card, no time limit. Upgrade to Pro or Advanced for unlimited uploads.</p>
+      <h2 data-i18n="pricing.title">Simple pricing</h2>
+      <p class="lede" data-i18n="pricing.lede">Starter is free forever — no card, no time limit. Upgrade to Pro or Advanced for unlimited uploads.</p>
 
-      <div class="billing-toggle" role="group" aria-label="Billing interval">
-        <button type="button" class="toggle-btn active" id="toggle-monthly" onclick="selectInterval('monthly')">Monthly</button>
-        <button type="button" class="toggle-btn" id="toggle-annual" onclick="selectInterval('annual')">Yearly <span class="save-chip">Save 20%</span></button>
+      <div class="billing-toggle" role="group" aria-label="Billing interval" data-i18n-aria="pricing.interval">
+        <button type="button" class="toggle-btn active" id="toggle-monthly" onclick="selectInterval('monthly')" data-i18n="pricing.monthly">Monthly</button>
+        <button type="button" class="toggle-btn" id="toggle-annual" onclick="selectInterval('annual')" data-i18n-html="pricing.yearly">Yearly <span class="save-chip">Save 20%</span></button>
       </div>
 
       <!-- Three real tiers. Starter has no price at all -- it's the
@@ -324,70 +339,70 @@
       <div class="plans">
         <div class="plan">
           <h3 class="plan-name">Starter</h3>
-          <p class="tagline">Best for evaluating on a single CRM export.</p>
-          <div class="price">Free</div>
-          <p class="note">Free forever — up to 10 uploads, 10 rows each.</p>
+          <p class="tagline" data-i18n="plan.starterTagline">Best for evaluating on a single CRM export.</p>
+          <div class="price" data-i18n="plan.free">Free</div>
+          <p class="note" data-i18n="plan.starterNote">Free forever — up to 10 uploads, 10 rows each.</p>
           <ul class="features">
-            <li>Hybrid rule + Claude lead scoring</li>
-            <li>Hot / Warm / Cold ranking with rationale</li>
+            <li data-i18n="feat.scoring">Hybrid rule + Claude lead scoring</li>
+            <li data-i18n="feat.ranking">Hot / Warm / Cold ranking with rationale</li>
           </ul>
-          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="openTrial()">Get started free</button>
+          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="openTrial()" data-i18n="plan.getStarted">Get started free</button>
         </div>
         <div class="plan featured">
-          <span class="badge">Most popular</span>
+          <span class="badge" data-i18n="plan.popular">Most popular</span>
           <h3 class="plan-name">Pro</h3>
-          <p class="tagline">Best for a sales team scoring accounts at volume.</p>
+          <p class="tagline" data-i18n="plan.proTagline">Best for a sales team scoring accounts at volume.</p>
           <div class="price" id="price-pro">…</div>
-          <p class="note">Unlimited uploads, billed per your plan.</p>
+          <p class="note" data-i18n="plan.unlimited">Unlimited uploads, billed per your plan.</p>
           <ul class="features">
-            <li>Hybrid rule + Claude lead scoring</li>
-            <li>Hot / Warm / Cold ranking with rationale</li>
-            <li>One-click Salesforce push</li>
-            <li>Slack alerts the moment a lead goes hot</li>
+            <li data-i18n="feat.scoring">Hybrid rule + Claude lead scoring</li>
+            <li data-i18n="feat.ranking">Hot / Warm / Cold ranking with rationale</li>
+            <li data-i18n="feat.salesforce">One-click Salesforce push</li>
+            <li data-i18n="feat.slack">Slack alerts the moment a lead goes hot</li>
           </ul>
-          <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('pro')">Subscribe</button>
+          <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('pro')" data-i18n="plan.subscribe">Subscribe</button>
         </div>
         <div class="plan">
           <h3 class="plan-name">Advanced</h3>
-          <p class="tagline">Best for agencies running it across multiple clients.</p>
+          <p class="tagline" data-i18n="plan.advancedTagline">Best for agencies running it across multiple clients.</p>
           <div class="price" id="price-advanced">…</div>
-          <p class="note">Unlimited uploads, billed per your plan.</p>
+          <p class="note" data-i18n="plan.unlimited">Unlimited uploads, billed per your plan.</p>
           <ul class="features">
-            <li>Hybrid rule + Claude lead scoring</li>
-            <li>Hot / Warm / Cold ranking with rationale</li>
-            <li>One-click Salesforce push</li>
-            <li>Slack alerts the moment a lead goes hot</li>
+            <li data-i18n="feat.scoring">Hybrid rule + Claude lead scoring</li>
+            <li data-i18n="feat.ranking">Hot / Warm / Cold ranking with rationale</li>
+            <li data-i18n="feat.salesforce">One-click Salesforce push</li>
+            <li data-i18n="feat.slack">Slack alerts the moment a lead goes hot</li>
           </ul>
-          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('advanced')">Subscribe</button>
+          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('advanced')" data-i18n="plan.subscribe">Subscribe</button>
         </div>
       </div>
       <p id="checkout-error" class="caption" style="display:none; color: var(--hot);"></p>
       <div id="trial" class="checkout" hidden>
         <div class="checkout-head">
-          <h3>Try CRM Scoring free</h3>
-          <button type="button" class="link-btn" onclick="closeTrial()">Cancel</button>
+          <h3 data-i18n="trial.title">Try CRM Scoring free</h3>
+          <button type="button" class="link-btn" onclick="closeTrial()" data-i18n="common.cancel">Cancel</button>
         </div>
-        <p class="fine">Your own private workspace — no card, no signup. Includes 10 uploads of up to 10 leads each. Upgrade to Pro or Advanced any time from inside the app.</p>
+        <p class="fine" data-i18n="trial.fine">Your own private workspace — no card, no signup. Includes 10 uploads of up to 10 leads each. Upgrade to Pro or Advanced any time from inside the app.</p>
         <p id="trial-error" class="error" hidden></p>
-        <button type="button" id="trial-start" class="btn btn-primary" style="width:100%; font: inherit;" onclick="startTrial()">Start free trial</button>
+        <button type="button" id="trial-start" class="btn btn-primary" style="width:100%; font: inherit;" onclick="startTrial()" data-i18n="trial.start">Start free trial</button>
       </div>
       <div id="checkout" class="checkout" hidden>
         <div class="checkout-head">
           <h3 id="checkout-title">Subscribe</h3>
-          <button type="button" class="link-btn" id="checkout-cancel" onclick="closeCheckout()">Cancel</button>
+          <button type="button" class="link-btn" id="checkout-cancel" onclick="closeCheckout()" data-i18n="common.cancel">Cancel</button>
         </div>
         <!-- Card checkout only appears once the server says it's switched on. -->
         <div id="card-checkout" hidden>
-          <p class="fine" id="checkout-fine">Billed by card. You'll enter your card on a secure payment page; your license key is shown and emailed right after.</p>
-          <button type="button" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" onclick="pay()">Continue to secure checkout</button>
+          <p class="fine" id="checkout-fine" data-i18n="checkout.cardFine">Billed by card. You'll enter your card on a secure payment page; your license key is shown and emailed right after.</p>
+          <button type="button" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" onclick="pay()" data-i18n="checkout.continue">Continue to secure checkout</button>
         </div>
         <p id="checkout-form-error" class="error" hidden></p>
         <div class="paypal-alt" id="paypal-alt" hidden>
           <p class="fine" id="paypal-intro">Pay with PayPal. Your license key is emailed to your PayPal address within one business day.</p>
           <div id="paypal-button"></div>
           <div class="paypal-qr">
-            <img id="paypal-qr" src="" alt="QR code for paying CRM Scoring with PayPal" width="112" loading="lazy" />
-            <p>Scan with your phone's camera to pay with PayPal, or <a id="paypal-link" href="#" target="_blank" rel="noopener">open the PayPal payment page</a>.</p>
+            <img id="paypal-qr" src="" data-i18n-alt="paypal.qrAlt" alt="QR code for paying CRM Scoring with PayPal" width="112" loading="lazy" />
+            <p><span data-i18n="paypal.qrBefore">Scan with your phone's camera to pay with PayPal, or</span> <a id="paypal-link" href="#" target="_blank" rel="noopener" data-i18n="paypal.qrLink">open the PayPal payment page</a><span data-i18n="paypal.qrAfter">.</span></p>
           </div>
         </div>
       </div>
@@ -397,10 +412,10 @@
   <footer>
     <div class="wrap">
       &copy; 2026 CRM Scoring. <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a>
-      &nbsp;·&nbsp; <a href="terms.html">Terms</a>
-      &nbsp;·&nbsp; <a href="privacy.html">Privacy</a>
-      &nbsp;·&nbsp; <a href="refunds.html">Refunds</a>
-      &nbsp;·&nbsp; <a href="guardrails.html">AI Guardrails</a>
+      &nbsp;·&nbsp; <a href="terms.html" data-i18n="footer.terms">Terms</a>
+      &nbsp;·&nbsp; <a href="privacy.html" data-i18n="footer.privacy">Privacy</a>
+      &nbsp;·&nbsp; <a href="refunds.html" data-i18n="footer.refunds">Refunds</a>
+      &nbsp;·&nbsp; <a href="guardrails.html" data-i18n="footer.guardrails">AI Guardrails</a>
     </div>
   </footer>
 
@@ -420,21 +435,266 @@
     // Checkout happens on Stripe's page;
     // the buyer comes back to thank-you.html?session_id=..., which shows the
     // license key.
-    var PRICES = { pro: { monthly: "$20/month", annual: "$192/year" }, advanced: { monthly: "$40/month", annual: "$384/year" } };
+    var AMOUNTS = { pro: { monthly: "$20", annual: "$192" }, advanced: { monthly: "$40", annual: "$384" } };
+    function priceLabel(tier, interval) { return t(interval === "annual" ? "price.year" : "price.month", { price: AMOUNTS[tier][interval] }); }
     var checkoutPlan = null;
     function $(id) { return document.getElementById(id); }
+    // --- Languages: English, Russian, Armenian -------------------------------
+    // Static text carries data-i18n (text), data-i18n-html, data-i18n-alt,
+    // data-i18n-aria or data-i18n-content attributes; script messages use t().
+    // The choice is remembered and handed to the app (?lang=) so it opens in
+    // the same language.
+    var I18N = {
+      en: {
+        "meta.title": "CRM Scoring — AI Lead Scoring, Self-Hosted",
+        "meta.description": "Hybrid rule + LLM lead scoring you self-host. Your CRM data never leaves your infrastructure.",
+        "nav.language": "Language",
+        "nav.login": "Log in / Sign up",
+        "nav.dashboard": "Dashboard",
+        "nav.account": "Account settings",
+        "nav.contact": "Contact",
+        "hero.kicker": "Self-hosted · hybrid scoring",
+        "hero.title": "Score your leads without<br />shipping your data <em>anywhere.</em>",
+        "hero.text": "A hybrid rule + LLM lead scorer you self-host. Upload your own CRM export, get every account enriched and ranked Hot/Warm/Cold against your ideal customer profile — all inside your own infrastructure.",
+        "hero.cta": "See pricing",
+        "preview.title": "What you'll see after your first upload",
+        "preview.lede": "Every account scored and bucketed, the Hot/Warm/Cold mix at a glance, and exactly where your list drops off.",
+        "preview.bar": "Scoring overview",
+        "preview.alt": "The Scoring overview dashboard for 10 sample leads: totals of 3 Hot, 6 Warm and 1 Cold, a donut of that mix, bars for the average score in each scoring dimension, and a line of every lead's score ranked best to worst against the Hot (75) and Warm (50) cutoffs.",
+        "preview.caption": "Sample data. Your dashboard fills in from your own CRM export.",
+        "f1.title": "Self-hosted, always",
+        "f1.text": "Runs on your own infra. Your CRM export never touches a third-party server.",
+        "f2.title": "Hybrid scoring",
+        "f2.text": "Transparent rule-based fit score, plus an LLM rationale that catches what rules miss.",
+        "f3.title": "Acts on the hot ones",
+        "f3.text": "One-click CRM push and Slack alerts the moment an account crosses your threshold.",
+        "pricing.title": "Simple pricing",
+        "pricing.lede": "Starter is free forever — no card, no time limit. Upgrade to Pro or Advanced for unlimited uploads.",
+        "pricing.interval": "Billing interval",
+        "pricing.monthly": "Monthly",
+        "pricing.yearly": "Yearly <span class=\"save-chip\">Save 20%</span>",
+        "plan.starterTagline": "Best for evaluating on a single CRM export.",
+        "plan.free": "Free",
+        "plan.starterNote": "Free forever — up to 10 uploads, 10 rows each.",
+        "plan.getStarted": "Get started free",
+        "plan.popular": "Most popular",
+        "plan.proTagline": "Best for a sales team scoring accounts at volume.",
+        "plan.advancedTagline": "Best for agencies running it across multiple clients.",
+        "plan.unlimited": "Unlimited uploads, billed per your plan.",
+        "plan.subscribe": "Subscribe",
+        "feat.scoring": "Hybrid rule + Claude lead scoring",
+        "feat.ranking": "Hot / Warm / Cold ranking with rationale",
+        "feat.salesforce": "One-click Salesforce push",
+        "feat.slack": "Slack alerts the moment a lead goes hot",
+        "trial.title": "Try CRM Scoring free",
+        "trial.fine": "Your own private workspace — no card, no signup. Includes 10 uploads of up to 10 leads each. Upgrade to Pro or Advanced any time from inside the app.",
+        "trial.start": "Start free trial",
+        "trial.starting": "Setting up your workspace…",
+        "trial.tooMany": "Too many trials started from your network — please try again later.",
+        "common.cancel": "Cancel",
+        "checkout.cardFine": "Billed by card. You'll enter your card on a secure payment page; your license key is shown and emailed right after.",
+        "checkout.continue": "Continue to secure checkout",
+        "checkout.opening": "Opening secure checkout…",
+        "checkout.unavailable": "Online payment for this plan isn't available yet. Email hello@crmscoring.com and we'll set you up.",
+        "paypal.intro": "Pay with PayPal. Your license key is emailed to your PayPal address within one business day.",
+        "paypal.introOr": "Or pay with PayPal. Your license key is emailed to your PayPal address within one business day.",
+        "paypal.qrAlt": "QR code for paying CRM Scoring with PayPal",
+        "paypal.qrBefore": "Scan with your phone's camera to pay with PayPal, or",
+        "paypal.qrLink": "open the PayPal payment page",
+        "paypal.qrAfter": ".",
+        "price.month": "{price}/month",
+        "price.year": "{price}/year",
+        "err.noResponse": "The payment server didn't respond. Please try again in a minute, or email hello@crmscoring.com.",
+        "err.generic": "Something went wrong. Please try again.",
+        "footer.terms": "Terms",
+        "footer.privacy": "Privacy",
+        "footer.refunds": "Refunds",
+        "footer.guardrails": "AI Guardrails"
+      },
+      ru: {
+        "meta.title": "CRM Scoring — оценка лидов с ИИ на вашем сервере",
+        "meta.description": "Гибридная оценка лидов по правилам и с помощью LLM, которую вы размещаете у себя. Данные CRM не покидают вашу инфраструктуру.",
+        "nav.language": "Язык",
+        "nav.login": "Вход / Регистрация",
+        "nav.dashboard": "Панель",
+        "nav.account": "Настройки аккаунта",
+        "nav.contact": "Связаться",
+        "hero.kicker": "На вашем сервере · гибридная оценка",
+        "hero.title": "Оценивайте лиды,<br />не отправляя данные <em>никуда.</em>",
+        "hero.text": "Гибридная оценка лидов по правилам и с помощью LLM, которую вы размещаете у себя. Загрузите выгрузку из CRM — каждый аккаунт будет обогащён и распределён на горячие, тёплые и холодные по профилю вашего идеального клиента, и всё это внутри вашей инфраструктуры.",
+        "hero.cta": "Посмотреть цены",
+        "preview.title": "Что вы увидите после первой загрузки",
+        "preview.lede": "Каждый аккаунт оценён и распределён по группам, соотношение горячих, тёплых и холодных видно сразу, как и место, где качество списка падает.",
+        "preview.bar": "Обзор оценки",
+        "preview.alt": "Панель обзора оценки для 10 примерных лидов: 3 горячих, 6 тёплых и 1 холодный, кольцевая диаграмма этого состава, столбцы средней оценки по каждому критерию и линия оценок всех лидов от лучшей к худшей с порогами для горячих (75) и тёплых (50).",
+        "preview.caption": "Пример данных. Ваша панель заполнится данными из вашей выгрузки CRM.",
+        "f1.title": "Всегда на вашем сервере",
+        "f1.text": "Работает в вашей инфраструктуре. Выгрузка из CRM никогда не попадает на сторонние серверы.",
+        "f2.title": "Гибридная оценка",
+        "f2.text": "Прозрачная оценка соответствия по правилам плюс обоснование от LLM, которое замечает то, что правила пропускают.",
+        "f3.title": "Работа с горячими лидами",
+        "f3.text": "Отправка в CRM в один клик и уведомления в Slack, как только аккаунт переходит ваш порог.",
+        "pricing.title": "Простые цены",
+        "pricing.lede": "Starter бесплатен навсегда — без карты и ограничений по времени. Перейдите на Pro или Advanced для безлимитных загрузок.",
+        "pricing.interval": "Период оплаты",
+        "pricing.monthly": "Ежемесячно",
+        "pricing.yearly": "Ежегодно <span class=\"save-chip\">Скидка 20%</span>",
+        "plan.starterTagline": "Чтобы попробовать на одной выгрузке из CRM.",
+        "plan.free": "Бесплатно",
+        "plan.starterNote": "Бесплатно навсегда — до 10 загрузок по 10 строк.",
+        "plan.getStarted": "Начать бесплатно",
+        "plan.popular": "Самый популярный",
+        "plan.proTagline": "Для отдела продаж, оценивающего много аккаунтов.",
+        "plan.advancedTagline": "Для агентств, работающих с несколькими клиентами.",
+        "plan.unlimited": "Безлимитные загрузки, оплата по вашему плану.",
+        "plan.subscribe": "Оформить подписку",
+        "feat.scoring": "Гибридная оценка лидов по правилам и с Claude",
+        "feat.ranking": "Горячие / тёплые / холодные с обоснованием",
+        "feat.salesforce": "Отправка в Salesforce в один клик",
+        "feat.slack": "Уведомления в Slack, как только лид становится горячим",
+        "trial.title": "Попробуйте CRM Scoring бесплатно",
+        "trial.fine": "Ваше личное рабочее пространство — без карты и регистрации. 10 загрузок до 10 лидов в каждой. Перейти на Pro или Advanced можно в любой момент прямо в приложении.",
+        "trial.start": "Начать бесплатно",
+        "trial.starting": "Готовим ваше рабочее пространство…",
+        "trial.tooMany": "Из вашей сети начато слишком много пробных периодов — попробуйте позже.",
+        "common.cancel": "Отмена",
+        "checkout.cardFine": "Оплата картой. Данные карты вводятся на защищённой странице оплаты; ключ лицензии показывается и приходит на почту сразу после оплаты.",
+        "checkout.continue": "Перейти к безопасной оплате",
+        "checkout.opening": "Открываем безопасную оплату…",
+        "checkout.unavailable": "Онлайн-оплата этого плана пока недоступна. Напишите на hello@crmscoring.com, и мы всё настроим.",
+        "paypal.intro": "Оплатите через PayPal. Ключ лицензии придёт на ваш адрес PayPal в течение одного рабочего дня.",
+        "paypal.introOr": "Или оплатите через PayPal. Ключ лицензии придёт на ваш адрес PayPal в течение одного рабочего дня.",
+        "paypal.qrAlt": "QR-код для оплаты CRM Scoring через PayPal",
+        "paypal.qrBefore": "Отсканируйте камерой телефона, чтобы оплатить через PayPal, или",
+        "paypal.qrLink": "откройте страницу оплаты PayPal",
+        "paypal.qrAfter": ".",
+        "price.month": "{price}/мес",
+        "price.year": "{price}/год",
+        "err.noResponse": "Платёжный сервер не ответил. Попробуйте через минуту или напишите на hello@crmscoring.com.",
+        "err.generic": "Что-то пошло не так. Попробуйте ещё раз.",
+        "footer.terms": "Условия",
+        "footer.privacy": "Конфиденциальность",
+        "footer.refunds": "Возвраты",
+        "footer.guardrails": "Принципы ИИ"
+      },
+      hy: {
+        "meta.title": "CRM Scoring — լիդերի գնահատում AI-ով ձեր սերվերում",
+        "meta.description": "Լիդերի հիբրիդային գնահատում՝ կանոններով և LLM-ով, որը տեղադրում եք ձեր սերվերում։ CRM-ի տվյալները երբեք դուրս չեն գալիս ձեր ենթակառուցվածքից։",
+        "nav.language": "Լեզու",
+        "nav.login": "Մուտք / Գրանցում",
+        "nav.dashboard": "Վահանակ",
+        "nav.account": "Հաշվի կարգավորումներ",
+        "nav.contact": "Կապ",
+        "hero.kicker": "Ձեր սերվերում · հիբրիդային գնահատում",
+        "hero.title": "Գնահատեք ձեր լիդերը՝<br />տվյալները <em>ոչ մի տեղ</em> չուղարկելով։",
+        "hero.text": "Լիդերի հիբրիդային գնահատում՝ կանոններով և LLM-ով, որը տեղադրում եք ձեր սերվերում։ Վերբեռնեք ձեր CRM-ի արտահանումը, և յուրաքանչյուր հաշիվ կհարստացվի ու կդասակարգվի թեժ, տաք կամ սառը՝ ըստ ձեր իդեալական հաճախորդի պրոֆիլի, ամբողջը՝ ձեր ենթակառուցվածքում։",
+        "hero.cta": "Տեսնել գները",
+        "preview.title": "Ինչ կտեսնեք առաջին վերբեռնումից հետո",
+        "preview.lede": "Յուրաքանչյուր հաշիվ գնահատված ու խմբավորված է, թեժ, տաք և սառը լիդերի հարաբերակցությունը տեսանելի է միանգամից, ինչպես նաև այն կետը, որտեղ ցուցակի որակն ընկնում է։",
+        "preview.bar": "Գնահատման ամփոփում",
+        "preview.alt": "Գնահատման ամփոփման վահանակ 10 օրինակելի լիդի համար՝ 3 թեժ, 6 տաք և 1 սառը, այդ բաշխման օղակաձև գծապատկեր, յուրաքանչյուր չափանիշի միջին գնահատականի սյուներ և բոլոր լիդերի գնահատականների գիծ՝ լավագույնից վատագույն, թեժ (75) և տաք (50) շեմերով։",
+        "preview.caption": "Օրինակելի տվյալներ։ Ձեր վահանակը կլրացվի ձեր CRM-ի արտահանումից։",
+        "f1.title": "Միշտ ձեր սերվերում",
+        "f1.text": "Աշխատում է ձեր ենթակառուցվածքում։ Ձեր CRM-ի արտահանումը երբեք չի հասնում երրորդ կողմի սերվերների։",
+        "f2.title": "Հիբրիդային գնահատում",
+        "f2.text": "Թափանցիկ համապատասխանության գնահատական՝ կանոններով, գումարած LLM-ի հիմնավորում, որը նկատում է այն, ինչ կանոնները բաց են թողնում։",
+        "f3.title": "Աշխատանք թեժ լիդերի հետ",
+        "f3.text": "Մեկ սեղմումով ուղարկում CRM և Slack ծանուցումներ, հենց որ հաշիվը հատում է ձեր շեմը։",
+        "pricing.title": "Պարզ գներ",
+        "pricing.lede": "Starter-ն ընդմիշտ անվճար է՝ առանց քարտի և ժամկետի։ Անցեք Pro կամ Advanced պլանին՝ անսահմանափակ վերբեռնումների համար։",
+        "pricing.interval": "Վճարման պարբերականություն",
+        "pricing.monthly": "Ամսական",
+        "pricing.yearly": "Տարեկան <span class=\"save-chip\">Խնայեք 20%</span>",
+        "plan.starterTagline": "Մեկ CRM արտահանման վրա փորձարկելու համար։",
+        "plan.free": "Անվճար",
+        "plan.starterNote": "Ընդմիշտ անվճար՝ մինչև 10 վերբեռնում, յուրաքանչյուրը 10 տող։",
+        "plan.getStarted": "Սկսել անվճար",
+        "plan.popular": "Ամենահայտնին",
+        "plan.proTagline": "Վաճառքի թիմի համար, որը գնահատում է շատ հաշիվներ։",
+        "plan.advancedTagline": "Գործակալությունների համար, որոնք աշխատում են մի քանի հաճախորդի հետ։",
+        "plan.unlimited": "Անսահմանափակ վերբեռնումներ՝ ըստ ձեր պլանի վճարմամբ։",
+        "plan.subscribe": "Բաժանորդագրվել",
+        "feat.scoring": "Լիդերի հիբրիդային գնահատում՝ կանոններով և Claude-ով",
+        "feat.ranking": "Թեժ / տաք / սառը դասակարգում՝ հիմնավորմամբ",
+        "feat.salesforce": "Մեկ սեղմումով ուղարկում Salesforce",
+        "feat.slack": "Slack ծանուցումներ, հենց որ լիդը թեժանում է",
+        "trial.title": "Փորձեք CRM Scoring-ը անվճար",
+        "trial.fine": "Ձեր անձնական աշխատանքային տարածքը՝ առանց քարտի և գրանցման։ 10 վերբեռնում՝ յուրաքանչյուրում մինչև 10 լիդ։ Pro կամ Advanced պլանին կարող եք անցնել ցանկացած պահի հենց հավելվածից։",
+        "trial.start": "Սկսել անվճար փորձաշրջանը",
+        "trial.starting": "Պատրաստում ենք ձեր աշխատանքային տարածքը…",
+        "trial.tooMany": "Ձեր ցանցից չափազանց շատ փորձաշրջաններ են սկսվել․ խնդրում ենք փորձել ավելի ուշ։",
+        "common.cancel": "Չեղարկել",
+        "checkout.cardFine": "Վճարում քարտով։ Քարտի տվյալները մուտքագրում եք անվտանգ վճարման էջում․ լիցենզիայի բանալին ցույց է տրվում և ուղարկվում էլ. փոստով անմիջապես վճարումից հետո։",
+        "checkout.continue": "Անցնել անվտանգ վճարմանը",
+        "checkout.opening": "Բացվում է անվտանգ վճարման էջը…",
+        "checkout.unavailable": "Այս պլանի առցանց վճարումը դեռ հասանելի չէ։ Գրեք hello@crmscoring.com հասցեին, և մենք ամեն ինչ կկարգավորենք։",
+        "paypal.intro": "Վճարեք PayPal-ով։ Լիցենզիայի բանալին կուղարկվի ձեր PayPal հասցեին մեկ աշխատանքային օրվա ընթացքում։",
+        "paypal.introOr": "Կամ վճարեք PayPal-ով։ Լիցենզիայի բանալին կուղարկվի ձեր PayPal հասցեին մեկ աշխատանքային օրվա ընթացքում։",
+        "paypal.qrAlt": "QR կոդ՝ CRM Scoring-ի համար PayPal-ով վճարելու համար",
+        "paypal.qrBefore": "Սկանավորեք հեռախոսի տեսախցիկով՝ PayPal-ով վճարելու համար, կամ",
+        "paypal.qrLink": "բացեք PayPal-ի վճարման էջը",
+        "paypal.qrAfter": "։",
+        "price.month": "{price}/ամիս",
+        "price.year": "{price}/տարի",
+        "err.noResponse": "Վճարային սերվերը չպատասխանեց։ Խնդրում ենք փորձել մեկ րոպեից կամ գրել hello@crmscoring.com հասցեին։",
+        "err.generic": "Ինչ-որ բան սխալ գնաց։ Խնդրում ենք նորից փորձել։",
+        "footer.terms": "Պայմաններ",
+        "footer.privacy": "Գաղտնիություն",
+        "footer.refunds": "Փոխհատուցում",
+        "footer.guardrails": "AI սկզբունքներ"
+      }
+    };
+    var LANG_KEY = "crmscoring_lang";
+    var lang = (function () {
+      var asked = new URLSearchParams(location.search).get("lang");
+      var saved = null;
+      try { saved = localStorage.getItem(LANG_KEY); } catch (e) {}
+      var browser = (navigator.language || "en").slice(0, 2).toLowerCase();
+      return [asked, saved, browser].filter(function (l) { return I18N[l]; })[0] || "en";
+    })();
+    function t(key, vars) {
+      var text = (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+      if (vars) Object.keys(vars).forEach(function (name) { text = text.split("{" + name + "}").join(vars[name]); });
+      return text;
+    }
+    // The app lives on another origin: pass the language along in its links.
+    function withLang(url) { return url + (url.indexOf("?") < 0 ? "?" : "&") + "lang=" + lang; }
+    function applyLanguage() {
+      document.documentElement.lang = lang;
+      document.querySelectorAll("[data-i18n]").forEach(function (el) { el.textContent = t(el.getAttribute("data-i18n")); });
+      document.querySelectorAll("[data-i18n-html]").forEach(function (el) { el.innerHTML = t(el.getAttribute("data-i18n-html")); });
+      document.querySelectorAll("[data-i18n-alt]").forEach(function (el) { el.alt = t(el.getAttribute("data-i18n-alt")); });
+      document.querySelectorAll("[data-i18n-aria]").forEach(function (el) { el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria"))); });
+      document.querySelectorAll("[data-i18n-content]").forEach(function (el) { el.content = t(el.getAttribute("data-i18n-content")); });
+      document.querySelectorAll(".lang-switch button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === lang)); });
+      $("nav-dashboard").href = withLang("https://ai-lead-generation-scoring.onrender.com/");
+      $("nav-account").href = withLang("https://ai-lead-generation-scoring.onrender.com/") + "#account";
+    }
+    function setLanguage(next) {
+      if (!I18N[next]) return;
+      lang = next;
+      try { localStorage.setItem(LANG_KEY, next); } catch (e) {}
+      applyLanguage();
+      // Re-render whatever the script filled in: prices, an open checkout box.
+      selectInterval(currentInterval);
+    }
+    document.querySelectorAll(".lang-switch button").forEach(function (b) {
+      b.addEventListener("click", function () { setLanguage(b.getAttribute("data-lang")); });
+    });
     // Never leave a button spinning: give up after 45s (the server can take
     // a while to wake up, but not longer than that).
     function api(path, options) {
       var controller = window.AbortController ? new AbortController() : null;
       var timer = controller && setTimeout(function () { controller.abort(); }, 45000);
       var opts = Object.assign({}, options || {}, controller ? { signal: controller.signal } : {});
+      // Server messages come back in the visitor's language.
+      opts.headers = Object.assign({}, (options || {}).headers, { "Accept-Language": lang });
       return fetch(API_BASE + path, opts).catch(function () {
-        throw new Error("The payment server didn't respond. Please try again in a minute, or email hello@crmscoring.com.");
+        throw new Error(t("err.noResponse"));
       }).then(function (res) {
         if (timer) clearTimeout(timer);
         return res.json().catch(function () { return {}; }).then(function (body) {
-          if (!res.ok) throw new Error(body.detail || body.error || "Something went wrong. Please try again.");
+          if (!res.ok) throw new Error(body.detail || body.error || t("err.generic"));
           return body;
         });
       });
@@ -470,21 +730,21 @@
       $("trial").hidden = false;
       $("trial-error").hidden = true;
       $("trial-start").disabled = false;
-      $("trial-start").textContent = "Start free trial";
+      $("trial-start").textContent = t("trial.start");
       $("trial").scrollIntoView({ behavior: "smooth", block: "center" });
     }
     function closeTrial() { $("trial").hidden = true; }
     function startTrial() {
       $("trial-start").disabled = true;
-      $("trial-start").textContent = "Setting up your workspace…";
+      $("trial-start").textContent = t("trial.starting");
       $("trial-error").hidden = true;
       api("/accounts/trial", { method: "POST" }).then(function (body) {
         markSignedIn();
-        window.location.href = APP_URL + "#workspace=" + encodeURIComponent(body.api_key);
+        window.location.href = withLang(APP_URL) + "#workspace=" + encodeURIComponent(body.api_key);
       }, function (err) {
         $("trial-start").disabled = false;
-        $("trial-start").textContent = "Start free trial";
-        $("trial-error").textContent = /rate limit/i.test(err.message) ? "Too many trials started from your network — please try again later." : err.message;
+        $("trial-start").textContent = t("trial.start");
+        $("trial-error").textContent = /rate limit/i.test(err.message) ? t("trial.tooMany") : err.message;
         $("trial-error").hidden = false;
       });
     }
@@ -533,9 +793,9 @@
       checkoutPlan = { tier: tier, interval: currentInterval };
       $("checkout").hidden = false;
       $("checkout-cancel").hidden = false;
-      $("checkout-title").textContent = (tier === "pro" ? "Pro" : "Advanced") + " — " + PRICES[tier][currentInterval];
+      $("checkout-title").textContent = (tier === "pro" ? "Pro" : "Advanced") + " — " + priceLabel(tier, currentInterval);
       $("checkout-pay").disabled = false;
-      $("checkout-pay").textContent = "Continue to secure checkout";
+      $("checkout-pay").textContent = t("checkout.continue");
       formError("");
       $("checkout").scrollIntoView({ behavior: "smooth", block: "center" });
       showPayPal(tier, currentInterval);
@@ -544,20 +804,20 @@
       var plan = checkoutPlan;
       var hasPayPal = !!(PAYPAL_BUTTONS[tier] && PAYPAL_BUTTONS[tier][plan.interval]);
       $("card-checkout").hidden = true;
-      $("paypal-intro").textContent = "Pay with PayPal. Your license key is emailed to your PayPal address within one business day.";
-      if (!hasPayPal) formError("Online payment for this plan isn't available yet. Email hello@crmscoring.com and we'll set you up.");
+      $("paypal-intro").textContent = t("paypal.intro");
+      if (!hasPayPal) formError(t("checkout.unavailable"));
       api("/billing/config").then(function (config) {
         if (checkoutPlan !== plan || !config.checkout_available) return;
         $("card-checkout").hidden = false;
         formError("");
-        $("paypal-intro").textContent = "Or pay with PayPal. Your license key is emailed to your PayPal address within one business day.";
+        $("paypal-intro").textContent = t("paypal.introOr");
       }, function () {});
     }
     function pay() {
       if (!checkoutPlan) return;
       formError("");
       $("checkout-pay").disabled = true;
-      $("checkout-pay").textContent = "Opening secure checkout…";
+      $("checkout-pay").textContent = t("checkout.opening");
       api("/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -566,10 +826,11 @@
         window.location.href = result.url;
       }, function (err) {
         $("checkout-pay").disabled = false;
-        $("checkout-pay").textContent = "Continue to secure checkout";
+        $("checkout-pay").textContent = t("checkout.continue");
         formError(err.message);
       });
     }
+    applyLanguage();
     selectInterval("monthly");
   </script>
 </body>

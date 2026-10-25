@@ -52,3 +52,19 @@ describe("language switching", () => {
     expect(initialLang()).toBe("en");
   });
 });
+
+describe("language handed over from crmscoring.com", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => window.history.replaceState(null, "", "/"));
+
+  it("opens in the ?lang= language and remembers it", () => {
+    window.history.replaceState(null, "", "/?lang=hy");
+    expect(initialLang()).toBe("hy");
+    expect(localStorage.getItem("crmscoring_lang")).toBe("hy");
+  });
+
+  it("ignores an unknown ?lang=", () => {
+    window.history.replaceState(null, "", "/?lang=xx");
+    expect(initialLang()).toBe("en");
+  });
+});

@@ -7,10 +7,11 @@ import { ru } from "./locales/ru";
 // other two must translate every key, which TypeScript checks.
 export type Lang = "en" | "hy" | "ru";
 
+// Same order and labels as the switcher on crmscoring.com.
 export const LANGUAGES: { code: Lang; label: string; short: string }[] = [
   { code: "en", label: "English", short: "EN" },
+  { code: "ru", label: "Русский", short: "RU" },
   { code: "hy", label: "Հայերեն", short: "ՀՅ" },
-  { code: "ru", label: "Русский", short: "РУ" },
 ];
 
 const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, hy, ru };
@@ -18,10 +19,20 @@ function isLang(value: unknown): value is Lang {
   return value === "en" || value === "hy" || value === "ru";
 }
 
-// The visitor's saved choice, else their browser's language, else English.
 export const STORAGE_KEY = "crmscoring_lang";
 
+// A ?lang= handed over by crmscoring.com (which is on another origin), else
+// the visitor's saved choice, else their browser's language, else English.
 export function initialLang(): Lang {
+  const asked = typeof location !== "undefined" ? new URLSearchParams(location.search).get("lang") : null;
+  if (isLang(asked)) {
+    try {
+      localStorage.setItem(STORAGE_KEY, asked);
+    } catch {
+      // not remembered, but still used
+    }
+    return asked;
+  }
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (isLang(saved)) return saved;
