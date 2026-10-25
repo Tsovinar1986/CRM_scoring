@@ -177,7 +177,7 @@ describe("free trial and workspace-aware license status", () => {
     await fetchLicenseStatus();
 
     const [, options] = vi.mocked(fetch).mock.calls[0];
-    expect(options?.headers).toEqual({ Authorization: "Bearer k" });
+    expect(options?.headers).toEqual({ Authorization: "Bearer k", "Accept-Language": "en" });
     clearTenantApiKey();
   });
 });

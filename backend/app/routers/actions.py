@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from .. import storage
 from ..auth import get_current_tenant
 from ..config import RATE_LIMIT_UPLOAD
+from ..i18n import request_lang, translate
 from ..middleware import limiter
 from ..models import Alert, CrmPushResponse
 from ..services.crm import push_to_crm
@@ -34,6 +35,7 @@ def crm_push(
     result = push_to_crm(lead, crm=crm)
     lead.crm_pushed = True
     storage.update_lead(tenant.id, lead)
+    result.detail = translate(result.detail, request_lang(request))
     return result
 
 

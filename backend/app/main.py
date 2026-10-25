@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import FileResponse
@@ -9,10 +10,12 @@ from loguru import logger
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import storage
 from .auth import get_optional_tenant
 from .config import CORS_ALLOWED_ORIGINS, FORCE_HTTPS, HOSTED_MODE
+from .i18n import request_lang, translate
 from .licensing import LicenseState, check_license, trial_uploads_left, verify_license, workspace_uploads_left
 from .logging_config import configure_logging
 from .middleware import SecurityHeadersMiddleware, limiter
@@ -41,6 +44,15 @@ app = FastAPI(title="AI Lead Generation & Scoring Agent", lifespan=lifespan)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def translated_http_exception(request: Request, exc: StarletteHTTPException):
+    """Error messages in the language the app asked for (Accept-Language), see app/i18n.py."""
+    lang = request_lang(request)
+    if lang != "en" and isinstance(exc.detail, str):
+        exc = StarletteHTTPException(exc.status_code, detail=translate(exc.detail, lang), headers=exc.headers)
+    return await http_exception_handler(request, exc)
 
 # Middleware order matters: the first one added here ends up outermost
 # (sees a request first, a response last), the last one added is innermost

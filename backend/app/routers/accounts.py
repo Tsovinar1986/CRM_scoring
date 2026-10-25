@@ -39,6 +39,7 @@ from ..config import (
     TRIAL_MAX_UPLOADS,
 )
 from ..licensing import verify_license
+from ..i18n import request_lang, translate
 from ..middleware import limiter
 from ..services.password import hash_password, validate_password_strength, verify_password
 from ..services.reset_email import send_password_reset_email
@@ -142,7 +143,7 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest):
         send_password_reset_email(payload.email, reset_url, PASSWORD_RESET_TTL_MINUTES)
     # Always the same response whether or not the email has an account --
     # avoids leaking which emails are registered.
-    return {"detail": "If that email has an account, a reset link is on its way."}
+    return {"detail": translate("If that email has an account, a reset link is on its way.", request_lang(request))}
 
 
 @router.post("/reset-password", response_model=TenantAuthResponse)

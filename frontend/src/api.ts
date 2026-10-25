@@ -8,6 +8,7 @@ import type {
   SubscriptionActivation,
   TenantAuth,
 } from "./types";
+import { initialLang, translator } from "./i18n";
 
 // Same-origin by default -- works unmodified both in merged production mode
 // (backend serves the built frontend, so "same origin" IS the backend) and
@@ -38,6 +39,13 @@ export function clearTenantApiKey(): void {
 // the hosted app sends someone after they sign out.
 export const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://crmscoring.com").replace(/\/$/, "");
 
+// Every API call says which language the app is in, so the server answers
+// (errors, status messages) in the same one -- see backend/app/i18n.py.
+function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const headers = { ...(init.headers as Record<string, string> | undefined), "Accept-Language": initialLang() };
+  return fetch(input, { ...init, headers });
+}
+
 function authHeaders(): Record<string, string> {
   const key = getTenantApiKey();
   return key ? { Authorization: `Bearer ${key}` } : {};
@@ -50,10 +58,9 @@ async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
     // slowapi's rate-limit response carries "error", not "detail".
+    const t = translator(initialLang());
     const message =
-      res.status === 429
-        ? "Too many attempts from your network. Please wait a while and try again."
-        : (body.detail ?? body.error ?? "Request failed");
+      res.status === 429 ? t("api.tooMany") : (body.detail ?? body.error ?? t("api.requestFailed"));
     if (res.status === 402) throw new LicenseRequiredError(message);
     if (res.status === 401) throw new TenantAuthError(message);
     throw new Error(message);
@@ -72,7 +79,7 @@ export interface UploadResult {
 export async function uploadLeads(file: File): Promise<UploadResult> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${BASE}/leads/upload`, { method: "POST", headers: authHeaders(), body: form });
+  const res = await apiFetch(`${BASE}/leads/upload`, { method: "POST", headers: authHeaders(), body: form });
   const leads = await handle<ScoredLead[]>(res);
   const limitedRows = res.headers.get("X-Trial-Limited-Rows");
   const totalRows = res.headers.get("X-Trial-Total-Rows");
@@ -84,7 +91,7 @@ export async function uploadLeads(file: File): Promise<UploadResult> {
 }
 
 export async function fetchLeads(): Promise<ScoredLead[]> {
-  const res = await fetch(`${BASE}/leads`, { headers: authHeaders() });
+  const res = await apiFetch(`${BASE}/leads`, { headers: authHeaders() });
   return handle(res);
 }
 
@@ -92,7 +99,7 @@ export async function pushToCrm(
   leadId: string,
   crm: string
 ): Promise<{ status: string; detail: string }> {
-  const res = await fetch(`${BASE}/leads/${leadId}/crm-push?crm=${crm}`, {
+  const res = await apiFetch(`${BASE}/leads/${leadId}/crm-push?crm=${crm}`, {
     method: "POST",
     headers: authHeaders(),
   });
@@ -102,32 +109,32 @@ export async function pushToCrm(
 // Deployment-wide on a self-hosted install; on the hosted deployment it
 // reports the current workspace's own trial/subscription, hence the header.
 export async function fetchLicenseStatus(): Promise<LicenseStatus> {
-  const res = await fetch(`${BASE}/license`, { headers: authHeaders() });
+  const res = await apiFetch(`${BASE}/license`, { headers: authHeaders() });
   return handle(res);
 }
 
 // Hosted deployment only: stops future charges; the workspace keeps its plan
 // until access_until (epoch seconds), the end of the period already paid for.
 export async function cancelWorkspaceSubscription(): Promise<{ status: "cancelled"; access_until: number | null }> {
-  const res = await fetch(`${BASE}/billing/subscription/cancel`, { method: "POST", headers: authHeaders() });
+  const res = await apiFetch(`${BASE}/billing/subscription/cancel`, { method: "POST", headers: authHeaders() });
   return handle(res);
 }
 
 // Hosted deployment only: a private Starter workspace, no signup needed.
 export async function startFreeTrial(): Promise<TenantAuth> {
-  const res = await fetch(`${BASE}/accounts/trial`, { method: "POST" });
+  const res = await apiFetch(`${BASE}/accounts/trial`, { method: "POST" });
   return handle(res);
 }
 
 export async function fetchBillingConfig(): Promise<BillingConfig> {
-  const res = await fetch(`${BASE}/billing/config`);
+  const res = await apiFetch(`${BASE}/billing/config`);
   return handle(res);
 }
 
 // Starts a checkout for the plan and returns the URL of the payment page. The workspace header lets the hosted deployment upgrade that
 // workspace once it's paid.
 export async function startCheckout(tier: PaidTier, interval: BillingInterval): Promise<{ url: string }> {
-  const res = await fetch(`${BASE}/billing/checkout`, {
+  const res = await apiFetch(`${BASE}/billing/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ tier, interval, source: "app" }),
@@ -138,7 +145,7 @@ export async function startCheckout(tier: PaidTier, interval: BillingInterval): 
 // Called on return from checkout (?checkout=<session id>): confirms the payment
 // and returns the license key, or that the workspace was upgraded.
 export async function confirmCheckout(sessionId: string): Promise<SubscriptionActivation> {
-  const res = await fetch(`${BASE}/billing/session/${encodeURIComponent(sessionId)}`);
+  const res = await apiFetch(`${BASE}/billing/session/${encodeURIComponent(sessionId)}`);
   return handle(res);
 }
 
@@ -146,7 +153,7 @@ export async function confirmCheckout(sessionId: string): Promise<SubscriptionAc
 // manually running scripts/create_tenant.py. None of these send the tenant
 // Authorization header (there's no tenant yet to authenticate as).
 export async function signup(name: string, email: string, password: string): Promise<TenantAuth> {
-  const res = await fetch(`${BASE}/accounts/signup`, {
+  const res = await apiFetch(`${BASE}/accounts/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, password }),
@@ -155,7 +162,7 @@ export async function signup(name: string, email: string, password: string): Pro
 }
 
 export async function login(email: string, password: string): Promise<TenantAuth> {
-  const res = await fetch(`${BASE}/accounts/login`, {
+  const res = await apiFetch(`${BASE}/accounts/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -164,7 +171,7 @@ export async function login(email: string, password: string): Promise<TenantAuth
 }
 
 export async function forgotPassword(email: string): Promise<{ detail: string }> {
-  const res = await fetch(`${BASE}/accounts/forgot-password`, {
+  const res = await apiFetch(`${BASE}/accounts/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
@@ -173,7 +180,7 @@ export async function forgotPassword(email: string): Promise<{ detail: string }>
 }
 
 export async function resetPassword(token: string, password: string): Promise<TenantAuth> {
-  const res = await fetch(`${BASE}/accounts/reset-password`, {
+  const res = await apiFetch(`${BASE}/accounts/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, password }),
@@ -184,12 +191,12 @@ export async function resetPassword(token: string, password: string): Promise<Te
 // Account settings for the signed-in workspace (404 on the self-hosted
 // default workspace, which isn't an account).
 export async function fetchAccount(): Promise<Account> {
-  const res = await fetch(`${BASE}/accounts/me`, { headers: authHeaders() });
+  const res = await apiFetch(`${BASE}/accounts/me`, { headers: authHeaders() });
   return handle(res);
 }
 
 export async function renameAccount(name: string): Promise<{ name: string }> {
-  const res = await fetch(`${BASE}/accounts/me`, {
+  const res = await apiFetch(`${BASE}/accounts/me`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ name }),
@@ -199,7 +206,7 @@ export async function renameAccount(name: string): Promise<{ name: string }> {
 
 // Returns a fresh key -- the old one (and any other device) is signed out.
 export async function changePassword(currentPassword: string, newPassword: string): Promise<TenantAuth> {
-  const res = await fetch(`${BASE}/accounts/me/password`, {
+  const res = await apiFetch(`${BASE}/accounts/me/password`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
@@ -210,7 +217,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 // Permanent. Cancels any paid subscription first; password is null for a
 // free-trial workspace, which has no login.
 export async function deleteAccount(password: string | null): Promise<{ status: "deleted" }> {
-  const res = await fetch(`${BASE}/accounts/me`, {
+  const res = await apiFetch(`${BASE}/accounts/me`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ password }),

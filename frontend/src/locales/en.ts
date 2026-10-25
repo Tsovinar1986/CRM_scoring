@@ -255,6 +255,8 @@ export const en = {
   "purchase.title": "Thanks for your purchase",
   "purchase.text": "Your license key is on its way to your email. Add it to your deployment's .env as LICENSE_KEY (with LICENSE_REQUIRED=true) to unlock the full product.",
   "purchase.noEmail": "Don't see the email in a minute or two? Check spam, or contact support with the email address you paid with.",
+  "api.tooMany": "Too many attempts from your network. Please wait a while and try again.",
+  "api.requestFailed": "Request failed",
 } as const;
 
 export type MessageKey = keyof typeof en;
