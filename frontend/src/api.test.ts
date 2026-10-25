@@ -181,3 +181,11 @@ describe("free trial and workspace-aware license status", () => {
     clearTenantApiKey();
   });
 });
+
+describe("siteLink", () => {
+  it("adds the app's language to crmscoring.com links, keeping any #anchor", async () => {
+    const { siteLink } = await import("./api");
+    expect(siteLink("/privacy.html", "hy")).toBe("https://crmscoring.com/privacy.html?lang=hy");
+    expect(siteLink("/#signed-out", "ru")).toBe("https://crmscoring.com/?lang=ru#signed-out");
+  });
+});

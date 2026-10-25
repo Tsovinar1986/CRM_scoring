@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { SITE_URL, forgotPassword, login, setTenantApiKey, signup, startFreeTrial } from "../api";
+import { siteLink, forgotPassword, login, setTenantApiKey, signup, startFreeTrial } from "../api";
 import { Logo } from "../components/Logo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { useI18n } from "../i18n";
@@ -31,7 +31,7 @@ interface Props {
 // workspace yet): log in / create an account on the left, or skip the
 // account entirely with a one-click free trial on the right.
 export function AuthPage({ onSignedIn }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -93,7 +93,7 @@ export function AuthPage({ onSignedIn }: Props) {
     <div className="min-h-screen font-sans text-text antialiased">
       <div className="mx-auto flex min-h-screen max-w-[960px] flex-col justify-center px-4 py-10 sm:px-6">
         <header className="animate-fade-in-up mb-8 flex flex-col items-center gap-1 text-center">
-          <a href={SITE_URL}>
+          <a href={siteLink("/", lang)}>
             <Logo />
           </a>
           <p className="text-sm text-text/75">{t("common.taglineShort")}</p>
@@ -252,11 +252,11 @@ export function AuthPage({ onSignedIn }: Props) {
 
         <p className="mt-6 text-center text-xs text-text/60">
           {t("auth.agreePrefix")}{" "}
-          <a className="underline underline-offset-2 hover:text-heading" href={`${SITE_URL}/terms.html`}>
+          <a className="underline underline-offset-2 hover:text-heading" href={siteLink("/terms.html", lang)}>
             {t("auth.terms")}
           </a>{" "}
           {t("auth.and")}{" "}
-          <a className="underline underline-offset-2 hover:text-heading" href={`${SITE_URL}/privacy.html`}>
+          <a className="underline underline-offset-2 hover:text-heading" href={siteLink("/privacy.html", lang)}>
             {t("auth.privacy")}
           </a>
           .

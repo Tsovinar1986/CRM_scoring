@@ -7,7 +7,7 @@ import {
   fetchAccount,
   renameAccount,
   setTenantApiKey,
-  SITE_URL,
+  siteLink,
 } from "../api";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Logo } from "../components/Logo";
@@ -179,7 +179,7 @@ export function AccountSettings({ onWorkspaceChange }: Props) {
   const header = (
     <div className="mb-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <a href={SITE_URL} className="inline-block">
+        <a href={siteLink("/", lang)} className="inline-block">
           <Logo />
         </a>
         <LanguageSwitcher />

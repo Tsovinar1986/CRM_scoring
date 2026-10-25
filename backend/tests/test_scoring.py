@@ -73,3 +73,37 @@ def test_score_is_deterministic_for_same_domain():
 
     assert first.fit_score == second.fit_score
     assert first.account_fit_score == second.account_fit_score
+
+
+def test_rationale_follows_the_uploaders_language_but_scores_dont():
+    lead = make_enriched()
+
+    english, armenian, russian = score_lead(lead), score_lead(lead, lang="hy"), score_lead(lead, lang="ru")
+
+    assert "Estimated account fit" in english.llm_rationale
+    assert "համապատասխանության գնահատականը" in armenian.llm_rationale
+    assert "Оценка соответствия" in russian.llm_rationale
+    assert english.combined_score == armenian.combined_score == russian.combined_score
+
+
+def test_claude_is_asked_to_write_the_rationale_in_that_language(monkeypatch):
+    import json
+    from types import SimpleNamespace
+
+    from app.services import scoring
+
+    prompts = []
+
+    def create(**kwargs):
+        prompts.append(kwargs["messages"][0]["content"])
+        text = json.dumps({"account_fit_score": 80, "rationale": "Хорошее соответствие."})
+        return SimpleNamespace(content=[SimpleNamespace(type="text", text=text)])
+
+    monkeypatch.setattr(scoring, "get_client", lambda: SimpleNamespace(messages=SimpleNamespace(create=create)))
+
+    scored = score_lead(make_enriched(), lang="ru")
+
+    assert "Write the rationale in Russian" in prompts[0]
+    assert scored.llm_rationale == "Хорошее соответствие."
+    score_lead(make_enriched())
+    assert "Write the rationale in" not in prompts[1]

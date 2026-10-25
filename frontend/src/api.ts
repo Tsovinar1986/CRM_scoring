@@ -39,6 +39,13 @@ export function clearTenantApiKey(): void {
 // the hosted app sends someone after they sign out.
 export const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://crmscoring.com").replace(/\/$/, "");
 
+// A link to a page on crmscoring.com in the app's language. The site is on
+// another origin and can't see the choice made here, so it rides along as ?lang=.
+export function siteLink(path: string, lang: string): string {
+  const [page, hash] = path.split("#");
+  return `${SITE_URL}${page}?lang=${lang}${hash !== undefined ? `#${hash}` : ""}`;
+}
+
 // Every API call says which language the app is in, so the server answers
 // (errors, status messages) in the same one -- see backend/app/i18n.py.
 function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {

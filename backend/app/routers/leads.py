@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Upload
 from .. import storage
 from ..auth import get_current_tenant
 from ..config import LICENSE_REQUIRED, RATE_LIMIT_UPLOAD, TRIAL_MAX_LEADS_PER_UPLOAD
+from ..i18n import request_lang
 from ..licensing import trial_uploads_left, verify_license, workspace_uploads_left
 from ..middleware import limiter
 from ..models import ScoredLead
@@ -81,10 +82,12 @@ async def upload_leads(
     elif gated:
         storage.increment_trial_uploads()
 
+    # The AI rationale is written in the uploader's app language.
+    lang = request_lang(request)
     scored: list[ScoredLead] = []
     for lead in raw_leads:
         enriched = enrich_lead(lead)
-        scored_lead = score_lead(enriched)
+        scored_lead = score_lead(enriched, lang=lang)
         scored.append(scored_lead)
         maybe_alert(tenant.id, scored_lead)
 

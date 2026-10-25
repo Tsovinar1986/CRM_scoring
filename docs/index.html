@@ -650,6 +650,8 @@
       var saved = null;
       try { saved = localStorage.getItem(LANG_KEY); } catch (e) {}
       var browser = (navigator.language || "en").slice(0, 2).toLowerCase();
+      // A language handed over by the app (?lang=) sticks for the next pages.
+      if (I18N[asked]) { try { localStorage.setItem(LANG_KEY, asked); } catch (e) {} }
       return [asked, saved, browser].filter(function (l) { return I18N[l]; })[0] || "en";
     })();
     function t(key, vars) {

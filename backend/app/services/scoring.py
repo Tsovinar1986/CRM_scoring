@@ -48,35 +48,64 @@ def _rule_score(lead: EnrichedLead) -> ScoreBreakdown:
     )
 
 
-def _mock_llm_assessment(lead: EnrichedLead, fit_score: float) -> tuple[float, str]:
+# The rationale is written in the language the person uploading uses in the
+# app (en, hy or ru -- see app/i18n.py); scores don't depend on it.
+_LANGUAGE_NAMES = {"hy": "Armenian", "ru": "Russian"}
+
+_MOCK_TEXT = {
+    "en": {
+        "hiring": "active hiring activity",
+        "industry": "industry fit ({0})",
+        "tech": "tech stack overlap ({0})",
+        "none": "no strong qualitative signals detected",
+        "rationale": "[mock LLM] Estimated account fit {fit}/100 for {company}, based on {signals}. Set ANTHROPIC_API_KEY to replace this with a real Claude assessment.",
+    },
+    "ru": {
+        "hiring": "активный набор сотрудников",
+        "industry": "соответствие отрасли ({0})",
+        "tech": "совпадение технологий ({0})",
+        "none": "явных качественных сигналов не обнаружено",
+        "rationale": "[mock LLM] Оценка соответствия аккаунта {company}: {fit}/100, на основе: {signals}. Укажите ANTHROPIC_API_KEY, чтобы заменить это настоящей оценкой Claude.",
+    },
+    "hy": {
+        "hiring": "աշխատողների ակտիվ ընդունում",
+        "industry": "ոլորտի համապատասխանություն ({0})",
+        "tech": "տեխնոլոգիաների համընկնում ({0})",
+        "none": "ակնհայտ որակական ազդանշաններ չեն հայտնաբերվել",
+        "rationale": "[mock LLM] {company}-ի համապատասխանության գնահատականը՝ {fit}/100, հիմնված՝ {signals}։ Նշեք ANTHROPIC_API_KEY-ը՝ սա Claude-ի իրական գնահատմամբ փոխարինելու համար։",
+    },
+}
+
+
+def _mock_llm_assessment(lead: EnrichedLead, fit_score: float, lang: str = "en") -> tuple[float, str]:
+    words = _MOCK_TEXT.get(lang, _MOCK_TEXT["en"])
     rng = random.Random(hash(lead.domain) & 0xFFFFFFFF)
     jitter = rng.uniform(-8, 8)
     account_fit = max(0.0, min(100.0, fit_score + jitter))
 
     signals = []
     if lead.is_hiring:
-        signals.append("active hiring activity")
+        signals.append(words["hiring"])
     if lead.industry in ICP["target_industries"]:
-        signals.append(f"industry fit ({lead.industry})")
+        signals.append(words["industry"].format(lead.industry))
     overlap = set(t.lower() for t in lead.tech_stack) & set(
         t.lower() for t in ICP["target_tech_stack"]
     )
     if overlap:
-        signals.append(f"tech stack overlap ({', '.join(sorted(overlap))})")
-    signal_text = "; ".join(signals) if signals else "no strong qualitative signals detected"
+        signals.append(words["tech"].format(", ".join(sorted(overlap))))
+    signal_text = "; ".join(signals) if signals else words["none"]
 
-    rationale = (
-        f"[mock LLM] Estimated account fit {account_fit:.0f}/100 for "
-        f"{lead.company_name}, based on {signal_text}. Set ANTHROPIC_API_KEY to "
-        f"replace this with a real Claude assessment."
-    )
+    rationale = words["rationale"].format(fit=f"{account_fit:.0f}", company=lead.company_name, signals=signal_text)
     return account_fit, rationale
 
 
-def _llm_assessment(lead: EnrichedLead, fit_score: float, breakdown: ScoreBreakdown) -> tuple[float, str]:
+def _llm_assessment(lead: EnrichedLead, fit_score: float, breakdown: ScoreBreakdown, lang: str = "en") -> tuple[float, str]:
     client = get_client()
     if client is None:
-        return _mock_llm_assessment(lead, fit_score)
+        return _mock_llm_assessment(lead, fit_score, lang)
+    language_note = (
+        f"\nWrite the rationale in {_LANGUAGE_NAMES[lang]}. Keep the JSON keys in English." if lang in _LANGUAGE_NAMES else ""
+    )
 
     # Deliberately company/account attributes only -- no contact name or
     # title goes into this prompt, since the assessment is about the
@@ -98,7 +127,7 @@ Rule-based fit_score: {fit_score:.1f}/100
 Breakdown: {breakdown.model_dump()}
 
 Respond with ONLY a JSON object of the form:
-{{"account_fit_score": <0-100 number>, "rationale": "<one or two sentence rationale>"}}
+{{"account_fit_score": <0-100 number>, "rationale": "<one or two sentence rationale>"}}{language_note}
 """
 
     try:
@@ -111,7 +140,7 @@ Respond with ONLY a JSON object of the form:
         data = json.loads(text.strip().strip("`"))
         return float(data["account_fit_score"]), str(data["rationale"])
     except Exception as exc:  # noqa: BLE001 - fall back rather than break scoring
-        account_fit, rationale = _mock_llm_assessment(lead, fit_score)
+        account_fit, rationale = _mock_llm_assessment(lead, fit_score, lang)
         return account_fit, f"{rationale} (LLM call failed: {exc})"
 
 
@@ -123,11 +152,11 @@ def _bucket_for(score: float) -> str:
     return "cold"
 
 
-def score_lead(lead: EnrichedLead) -> ScoredLead:
+def score_lead(lead: EnrichedLead, lang: str = "en") -> ScoredLead:
     breakdown = _rule_score(lead)
     fit_score = round(sum(breakdown.model_dump().values()), 1)
 
-    account_fit_score, rationale = _llm_assessment(lead, fit_score, breakdown)
+    account_fit_score, rationale = _llm_assessment(lead, fit_score, breakdown, lang)
 
     combined_score = round(RULE_WEIGHT * fit_score + LLM_WEIGHT * account_fit_score, 1)
     bucket = _bucket_for(combined_score)

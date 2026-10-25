@@ -50,6 +50,8 @@
     var saved = null;
     try { saved = localStorage.getItem(KEY); } catch (e) {}
     var browser = (navigator.language || "en").slice(0, 2).toLowerCase();
+    // A language handed over by the app (?lang=) sticks for the next pages.
+    if (valid(asked)) { try { localStorage.setItem(KEY, asked); } catch (e) {} }
     return [asked, saved, browser].filter(valid)[0] || "en";
   })();
 

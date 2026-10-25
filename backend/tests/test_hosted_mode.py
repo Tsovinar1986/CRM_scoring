@@ -19,7 +19,7 @@ def hosted(monkeypatch):
     monkeypatch.setattr("app.main.HOSTED_MODE", True)
     # Scoring itself isn't under test -- keep uploads offline and fast.
     monkeypatch.setattr(leads_router, "enrich_lead", lambda lead: lead)
-    monkeypatch.setattr(leads_router, "score_lead", lambda lead: _scored(lead))
+    monkeypatch.setattr(leads_router, "score_lead", lambda lead, lang="en": _scored(lead))
 
 
 def _scored(lead):

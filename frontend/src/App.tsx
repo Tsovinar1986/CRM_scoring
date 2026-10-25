@@ -4,7 +4,7 @@ import {
   clearTenantApiKey,
   fetchLeads,
   fetchLicenseStatus,
-  SITE_URL,
+  siteLink,
   getTenantApiKey,
   setTenantApiKey,
 } from "./api";
@@ -39,7 +39,7 @@ function adoptWorkspaceFromUrl() {
 adoptWorkspaceFromUrl();
 
 function LeadScoringApp() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [leads, setLeads] = useState<ScoredLead[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bucketFilter, setBucketFilter] = useState<"all" | "hot" | "warm" | "cold">("all");
@@ -106,7 +106,7 @@ function LeadScoringApp() {
       // Signed out, disconnected or deleted on the hosted app: back to the
       // marketing site, the same place a new visitor starts.
       // #signed-out tells the site to swap its nav back to "Log in / Sign up".
-      window.location.assign(`${SITE_URL}/#signed-out`);
+      window.location.assign(siteLink("/#signed-out", lang));
       return;
     }
     if (!getTenantApiKey() && showAccount) {
@@ -144,7 +144,7 @@ function LeadScoringApp() {
         <header className="animate-fade-in-up mb-7">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <a href={SITE_URL} className="inline-block">
+              <a href={siteLink("/", lang)} className="inline-block">
                 <Logo />
               </a>
               <p className="mt-1 text-sm text-text/75">{t("common.tagline")}</p>
