@@ -12,6 +12,7 @@ vi.mock("../api", async (importActual) => {
     fetchLicenseStatus: vi.fn(),
     fetchBillingConfig: vi.fn(),
     startCheckout: vi.fn(),
+    startPayPalCheckout: vi.fn(),
     startFreeTrial: vi.fn(),
     cancelWorkspaceSubscription: vi.fn(),
   };
@@ -269,5 +270,42 @@ describe("LicenseBanner in the native apps", () => {
 
     expect(await screen.findByText("Your free trial has ended.")).toBeInTheDocument();
     expect(screen.queryByText(/subscribe/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("LicenseBanner with PayPal", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("offers PayPal next to card checkout and sends the buyer to PayPal", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ ...configured, paypal_available: true });
+    vi.mocked(api.startPayPalCheckout).mockResolvedValue({ url: "https://www.paypal.com/webapps/billing/subscriptions?ba_token=BA-1" });
+    const assign = vi.fn();
+    vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign });
+
+    render(<LicenseBanner />);
+    await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
+    expect(screen.getByRole("button", { name: /continue to secure checkout/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Pay with PayPal" }));
+
+    expect(api.startPayPalCheckout).toHaveBeenCalledWith("pro", "monthly");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://www.paypal.com/webapps/billing/subscriptions?ba_token=BA-1"));
+  });
+
+  it("offers PayPal alone when card checkout isn't set up", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ checkout_available: false, paypal_available: true, environment: "test" });
+
+    render(<LicenseBanner />);
+    await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
+
+    expect(screen.getByRole("button", { name: "Pay with PayPal" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /continue to secure checkout/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/isn't configured/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/test mode/i)).not.toBeInTheDocument();
   });
 });

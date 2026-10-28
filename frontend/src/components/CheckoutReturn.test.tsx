@@ -6,7 +6,7 @@ import * as api from "../api";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
-  return { ...actual, confirmCheckout: vi.fn() };
+  return { ...actual, confirmCheckout: vi.fn(), confirmPayPal: vi.fn() };
 });
 
 describe("CheckoutReturn", () => {
@@ -58,5 +58,24 @@ describe("CheckoutReturn", () => {
     render(<CheckoutReturn onDone={vi.fn()} />);
 
     expect(await screen.findByText(/this payment isn't complete yet/i)).toBeInTheDocument();
+  });
+});
+
+describe("CheckoutReturn after PayPal", () => {
+  afterEach(() => window.history.replaceState(null, "", "/"));
+
+  it("confirms the PayPal subscription it came back with and tidies the URL", async () => {
+    window.history.replaceState(null, "", "/?paypal=1&subscription_id=I-ABC123&ba_token=BA-1&token=T-1");
+    vi.mocked(api.confirmPayPal).mockResolvedValue({
+      status: "ok", email: "jo@example.com", tier: "pro", plan: "monthly", license_key: "LK", workspace_upgraded: true,
+    });
+    const onDone = vi.fn();
+
+    render(<CheckoutReturn onDone={onDone} />);
+
+    expect(await screen.findByText(/this workspace is now on Pro/i)).toBeInTheDocument();
+    expect(api.confirmPayPal).toHaveBeenCalledWith("I-ABC123");
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(window.location.search).toBe("");
   });
 });

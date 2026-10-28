@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { confirmCheckout } from "../api";
+import { confirmCheckout, confirmPayPal } from "../api";
 import { useI18n } from "../i18n";
 import { TIER_LABEL } from "../plans";
 import type { SubscriptionActivation } from "../types";
@@ -9,8 +9,11 @@ type Phase =
   | { kind: "done"; result: SubscriptionActivation }
   | { kind: "failed"; message: string };
 
+// Stripe comes back with ?checkout=<session id>; PayPal with
+// ?paypal=1&subscription_id=I-... (it adds its own ba_token/token too).
 function checkoutSessionFromUrl(): string | null {
-  return new URLSearchParams(window.location.search).get("checkout");
+  const params = new URLSearchParams(window.location.search);
+  return params.get("checkout") ?? (params.get("paypal") ? params.get("subscription_id") : null);
 }
 
 // The buyer comes back to /?checkout=<session id> after paying. This
@@ -25,7 +28,7 @@ export function CheckoutReturn({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
-    confirmCheckout(sessionId).then(
+    (sessionId.startsWith("I-") ? confirmPayPal(sessionId) : confirmCheckout(sessionId)).then(
       (result) => !cancelled && setPhase({ kind: "done", result }),
       (err) =>
         !cancelled &&
@@ -40,7 +43,7 @@ export function CheckoutReturn({ onDone }: { onDone: () => void }) {
 
   function close() {
     const params = new URLSearchParams(window.location.search);
-    params.delete("checkout");
+    for (const name of ["checkout", "paypal", "subscription_id", "ba_token", "token"]) params.delete(name);
     const query = params.toString();
     window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : "") + window.location.hash);
     onDone();

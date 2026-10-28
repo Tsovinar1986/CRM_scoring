@@ -44,11 +44,17 @@ from ..config import (
     PRICE_PRO_MONTHLY,
     RATE_LIMIT_AUTH,
     STOREFRONT_URL,
+    PAYPAL_CLIENT_ID,
+    PAYPAL_CLIENT_SECRET,
+    PAYPAL_MODE,
+    PAYPAL_WEBHOOK_ID,
     STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET,
 )
 from ..middleware import limiter
 from ..services.license_email import send_license_email
+from ..i18n import request_lang
+from ..services.paypal_billing import PayPalBilling
 from ..services.stripe_billing import BillingError, StripeBilling
 
 _LICENSING_DIR = Path(__file__).resolve().parents[3] / "licensing"
@@ -76,6 +82,21 @@ def _api() -> StripeBilling:
     if not _configured():
         raise HTTPException(status_code=503, detail="Checkout isn't configured on this deployment.")
     return StripeBilling(STRIPE_SECRET_KEY)
+
+
+def _paypal_configured() -> bool:
+    return bool(PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET)
+
+
+def _paypal() -> PayPalBilling:
+    if not _paypal_configured():
+        raise HTTPException(status_code=503, detail="PayPal isn't configured on this deployment.")
+    return PayPalBilling(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_MODE)
+
+
+def _is_paypal(subscription_id: str) -> bool:
+    # PayPal subscription ids look like I-ABC123...; Stripe's start with sub_.
+    return subscription_id.startswith("I-")
 
 
 def _call(what: str, fn, *args, **kwargs):
@@ -223,6 +244,7 @@ class CheckoutRequest(BaseModel):
 def billing_config():
     return {
         "checkout_available": _configured(),
+        "paypal_available": _paypal_configured(),
         "currency": BILLING_CURRENCY,
         "environment": "live" if STRIPE_SECRET_KEY.startswith(("sk_live_", "rk_live_")) else "test",
         "price_monthly": PRICE_PRO_MONTHLY or None,
@@ -300,7 +322,8 @@ def cancel_subscription(subscription_id: str, *, immediately: bool = False) -> d
     subscription (None if Stripe no longer has it); raises 502 if it couldn't
     be cancelled, so callers never go on as if billing had stopped when it hasn't."""
     try:
-        return _api().cancel_subscription(subscription_id, at_period_end=not immediately)
+        provider = _paypal() if _is_paypal(subscription_id) else _api()
+        return provider.cancel_subscription(subscription_id, at_period_end=not immediately)
     except BillingError as exc:
         if exc.status == 404:
             return None
@@ -321,6 +344,92 @@ def cancel_workspace_subscription(tenant: storage.Tenant = Depends(get_current_t
     storage.end_tenant_subscription(subscription_id, access_until)
     logger.info("Workspace {} cancelled {} (access until {})", tenant.id, subscription_id, access_until)
     return {"status": "cancelled", "access_until": access_until}
+
+
+@router.post("/paypal/checkout")
+@limiter.limit(RATE_LIMIT_AUTH)
+def paypal_checkout(
+    request: Request,
+    payload: CheckoutRequest,
+    tenant: storage.Tenant | None = Depends(get_optional_tenant),
+):
+    """Starts a PayPal subscription for the plan; returns PayPal's approval
+    page URL. PayPal sends the buyer back with ?subscription_id=..., and the
+    page they land on confirms it through /paypal/subscription/<id>."""
+    metadata = {"tier": payload.tier, "interval": payload.interval}
+    workspace = HOSTED_MODE and tenant is not None and tenant.id != storage.DEFAULT_TENANT_ID
+    if workspace:
+        metadata["tenant_id"] = tenant.id
+    if payload.source == "site":
+        return_url = f"{STOREFRONT_URL.rstrip('/')}/thank-you.html?paypal=1"
+        cancel_url = f"{STOREFRONT_URL.rstrip('/')}/#pricing"
+    else:
+        return_url = f"{APP_BASE_URL.rstrip('/')}/?paypal=1"
+        cancel_url = f"{APP_BASE_URL.rstrip('/')}/#plans"
+    started = _call(
+        "start PayPal checkout",
+        _paypal().create_subscription,
+        amount=_amount_cents(payload.tier, payload.interval),
+        description=f"{_PRODUCT_NAMES[payload.tier]} ({payload.interval})",
+        currency=BILLING_CURRENCY,
+        interval=_INTERVALS[payload.interval],
+        metadata=metadata,
+        return_url=return_url,
+        cancel_url=cancel_url,
+        customer_email=tenant.email if workspace and tenant.email else None,
+        lang=request_lang(request),
+    )
+    return {"url": started["url"], "subscription_id": started["id"]}
+
+
+@router.get("/paypal/subscription/{subscription_id}")
+@limiter.limit(RATE_LIMIT_AUTH)
+def paypal_subscription(request: Request, subscription_id: str = PathParam(max_length=64, pattern=r"^I-[A-Z0-9]+$")):
+    """Confirms an approved PayPal subscription and returns its license key
+    (or that the workspace was upgraded). A reload shows the same key again."""
+    subscription = _call("look up the PayPal subscription", _paypal().get_subscription, subscription_id)
+    if subscription["status"] != "active":
+        raise HTTPException(status_code=409, detail="This payment isn't complete yet.")
+    upgraded = _activate_workspace(subscription)
+    result = _fulfil(subscription)
+    if result["status"] == "duplicate" and result["license_key"]:
+        result["status"] = "ok"
+    return {**result, "workspace_upgraded": upgraded}
+
+
+@router.post("/paypal/webhook")
+async def paypal_webhook(request: Request):
+    """Renewals and cancellations of PayPal subscriptions, plus a fallback if
+    the buyer never made it back. In the PayPal developer dashboard (Apps &
+    Credentials -> your app -> Webhooks) add
+    https://<backend>/api/billing/paypal/webhook for BILLING.SUBSCRIPTION.ACTIVATED,
+    BILLING.SUBSCRIPTION.CANCELLED, BILLING.SUBSCRIPTION.EXPIRED,
+    BILLING.SUBSCRIPTION.SUSPENDED and PAYMENT.SALE.COMPLETED, and set its id
+    as PAYPAL_WEBHOOK_ID.
+    """
+    try:
+        event = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid webhook signature.")
+    headers = {k.lower(): v for k, v in request.headers.items()}
+    # Verifying and re-reading the subscription are blocking PayPal calls.
+    return await run_in_threadpool(_handle_paypal_webhook, headers, event)
+
+
+def _verify_paypal_webhook(headers: dict, event: dict) -> None:
+    if not (_paypal_configured() and PAYPAL_WEBHOOK_ID):
+        raise HTTPException(status_code=503, detail="Webhooks aren't configured on this deployment.")
+    if not _call("verify the PayPal webhook", _paypal().verify_webhook, headers, event, PAYPAL_WEBHOOK_ID):
+        raise HTTPException(status_code=400, detail="Invalid webhook signature.")
+
+
+def _handle_paypal_webhook(headers: dict, event: dict) -> dict:
+    _verify_paypal_webhook(headers, event)
+    translated = _call("handle the webhook", _paypal().translate_event, event)
+    if translated is None:
+        logger.info("PayPal {} ignored", event.get("event_type"))
+        return {"status": "ignored"}
+    return _handle_event(translated)
 
 
 @router.post("/stripe/webhook")

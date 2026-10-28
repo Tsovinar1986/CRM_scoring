@@ -231,6 +231,12 @@
   .checkout .paypal-alt { margin-top: 6px; }
   .checkout #card-checkout:not([hidden]) ~ .paypal-alt { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
   .checkout .paypal-alt .fine { margin: 0 0 10px; }
+  .checkout .paypal-api {
+    width: 100%; padding: 12px 22px; border: 0; border-radius: 4px; font: inherit; font-weight: 700;
+    background: #ffc439; color: #003087; cursor: pointer;
+  }
+  .checkout .paypal-api:disabled { opacity: 0.6; cursor: not-allowed; }
+  .checkout .paypal-qr[hidden] { display: none; }
   .checkout .paypal-qr { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
   .checkout .paypal-qr img { width: 128px; height: auto; border-radius: 6px; background: #fff; flex-shrink: 0; }
   .checkout .paypal-qr p { margin: 0; font-size: 0.82rem; color: var(--text-muted); }
@@ -399,8 +405,9 @@
         <p id="checkout-form-error" class="error" hidden></p>
         <div class="paypal-alt" id="paypal-alt" hidden>
           <p class="fine" id="paypal-intro">Pay with PayPal. Your license key is emailed to your PayPal address within one business day.</p>
+          <button type="button" id="paypal-api" class="paypal-api" hidden onclick="payWithPayPal()" data-i18n="paypal.api">Pay with PayPal</button>
           <div id="paypal-button"></div>
-          <div class="paypal-qr">
+          <div class="paypal-qr" id="paypal-qr-block">
             <img id="paypal-qr" src="" data-i18n-alt="paypal.qrAlt" alt="QR code for paying CRM Scoring with PayPal" width="112" loading="lazy" />
             <p><span data-i18n="paypal.qrBefore">Scan with your phone's camera to pay with PayPal, or</span> <a id="paypal-link" href="#" target="_blank" rel="noopener" data-i18n="paypal.qrLink">open the PayPal payment page</a><span data-i18n="paypal.qrAfter">.</span></p>
           </div>
@@ -446,6 +453,10 @@
     // the same language.
     var I18N = {
       en: {
+        "paypal.api": "Pay with PayPal",
+        "paypal.opening": "Opening PayPal…",
+        "paypal.introApi": "Pay with PayPal. It renews automatically and you can cancel any time; your license key is shown right after.",
+        "paypal.introApiOr": "Or pay with PayPal. It renews automatically and you can cancel any time; your license key is shown right after.",
         "meta.title": "CRM Scoring — AI Lead Scoring, Self-Hosted",
         "meta.description": "Hybrid rule + LLM lead scoring you self-host. Your CRM data never leaves your infrastructure.",
         "nav.language": "Language",
@@ -512,6 +523,10 @@
         "footer.guardrails": "AI Guardrails"
       },
       ru: {
+        "paypal.api": "Оплатить через PayPal",
+        "paypal.opening": "Открываем PayPal…",
+        "paypal.introApi": "Оплатите через PayPal. Подписка продлевается автоматически, отменить можно в любой момент; ключ лицензии показывается сразу после оплаты.",
+        "paypal.introApiOr": "Или оплатите через PayPal. Подписка продлевается автоматически, отменить можно в любой момент; ключ лицензии показывается сразу после оплаты.",
         "meta.title": "CRM Scoring — оценка лидов с ИИ на вашем сервере",
         "meta.description": "Гибридная оценка лидов по правилам и с помощью LLM, которую вы размещаете у себя. Данные CRM не покидают вашу инфраструктуру.",
         "nav.language": "Язык",
@@ -578,6 +593,10 @@
         "footer.guardrails": "Принципы ИИ"
       },
       hy: {
+        "paypal.api": "Վճարել PayPal-ով",
+        "paypal.opening": "Բացվում է PayPal-ը…",
+        "paypal.introApi": "Վճարեք PayPal-ով։ Բաժանորդագրությունը երկարաձգվում է ավտոմատ, և կարող եք չեղարկել ցանկացած պահի․ լիցենզիայի բանալին ցույց է տրվում անմիջապես վճարումից հետո։",
+        "paypal.introApiOr": "Կամ վճարեք PayPal-ով։ Բաժանորդագրությունը երկարաձգվում է ավտոմատ, և կարող եք չեղարկել ցանկացած պահի․ լիցենզիայի բանալին ցույց է տրվում անմիջապես վճարումից հետո։",
         "meta.title": "CRM Scoring — լիդերի գնահատում AI-ով ձեր սերվերում",
         "meta.description": "Լիդերի հիբրիդային գնահատում՝ կանոններով և LLM-ով, որը տեղադրում եք ձեր սերվերում։ CRM-ի տվյալները երբեք դուրս չեն գալիս ձեր ենթակառուցվածքից։",
         "nav.language": "Լեզու",
@@ -808,12 +827,44 @@
       $("card-checkout").hidden = true;
       $("paypal-intro").textContent = t("paypal.intro");
       if (!hasPayPal) formError(t("checkout.unavailable"));
+      usePayPalSubscriptions(false, false);
       api("/billing/config").then(function (config) {
-        if (checkoutPlan !== plan || !config.checkout_available) return;
-        $("card-checkout").hidden = false;
-        formError("");
-        $("paypal-intro").textContent = t("paypal.introOr");
+        if (checkoutPlan !== plan) return;
+        // With PayPal keys on the server, PayPal runs as a real subscription
+        // with the key shown right after; otherwise the hosted buttons/QR.
+        usePayPalSubscriptions(!!config.paypal_available, !!config.checkout_available);
+        if (config.paypal_available || config.checkout_available) formError("");
+        if (config.checkout_available) $("card-checkout").hidden = false;
       }, function () {});
+    }
+    function usePayPalSubscriptions(on, cardToo) {
+      var hosted = !!(checkoutPlan && PAYPAL_BUTTONS[checkoutPlan.tier] && PAYPAL_BUTTONS[checkoutPlan.tier][checkoutPlan.interval]);
+      $("paypal-api").hidden = !on;
+      $("paypal-api").disabled = false;
+      $("paypal-api").textContent = t("paypal.api");
+      $("paypal-button").hidden = on;
+      $("paypal-qr-block").hidden = on;
+      $("paypal-alt").hidden = !(on || hosted);
+      $("paypal-intro").textContent = on
+        ? t(cardToo ? "paypal.introApiOr" : "paypal.introApi")
+        : t(cardToo ? "paypal.introOr" : "paypal.intro");
+    }
+    function payWithPayPal() {
+      if (!checkoutPlan) return;
+      formError("");
+      $("paypal-api").disabled = true;
+      $("paypal-api").textContent = t("paypal.opening");
+      api("/billing/paypal/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: checkoutPlan.tier, interval: checkoutPlan.interval, source: "site" })
+      }).then(function (result) {
+        window.location.href = result.url;
+      }, function (err) {
+        $("paypal-api").disabled = false;
+        $("paypal-api").textContent = t("paypal.api");
+        formError(err.message);
+      });
     }
     function pay() {
       if (!checkoutPlan) return;

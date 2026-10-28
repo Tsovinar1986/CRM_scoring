@@ -260,7 +260,7 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
             >
               {t("banner.advancedAnnual")}
             </button>
-            {billing?.checkout_available && <span className="text-xs text-text/70">{t("banner.secureCheckout")}</span>}
+            {(billing?.checkout_available || billing?.paypal_available) && <span className="text-xs text-text/70">{t("banner.secureCheckout")}</span>}
           </>
         )}
       </div>

@@ -47,6 +47,25 @@ subscription simply stops receiving new keys.
    and a live-mode webhook. Test and live mode have separate keys, prices
    and webhooks.
 
+## PayPal subscriptions
+
+PayPal is offered next to card checkout, as a real subscription that renews
+by itself; the key is shown (or the workspace upgraded) right after, like
+card checkout.
+
+1. Set `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` from your PayPal app
+   (developer.paypal.com -> Apps & Credentials -> Live) and `PAYPAL_MODE=live`.
+   The CRM Scoring product and its plans are created in PayPal on the first
+   sale of each plan.
+2. Add a webhook to that app for
+   `https://<your-backend>/api/billing/paypal/webhook` with the events
+   `BILLING.SUBSCRIPTION.ACTIVATED`, `BILLING.SUBSCRIPTION.CANCELLED`,
+   `BILLING.SUBSCRIPTION.EXPIRED`, `BILLING.SUBSCRIPTION.SUSPENDED` and
+   `PAYMENT.SALE.COMPLETED`, and set its id as `PAYPAL_WEBHOOK_ID`.
+
+Without these keys the website falls back to the PayPal hosted buttons (one-off
+payments; keys sent by hand).
+
 ## How checkout works
 
 Both the app (React frontend) and the storefront (`docs/index.html`) send

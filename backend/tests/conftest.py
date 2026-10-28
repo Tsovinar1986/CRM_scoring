@@ -7,6 +7,9 @@ os.environ["HOSTED_MODE"] = "false"
 # Never reach a real Stripe account from tests, whatever .env holds.
 os.environ["STRIPE_SECRET_KEY"] = ""
 os.environ["STRIPE_WEBHOOK_SECRET"] = ""
+os.environ["PAYPAL_CLIENT_ID"] = ""
+os.environ["PAYPAL_CLIENT_SECRET"] = ""
+os.environ["PAYPAL_WEBHOOK_ID"] = ""
 
 import pytest  # noqa: E402
 

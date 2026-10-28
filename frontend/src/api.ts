@@ -149,6 +149,22 @@ export async function startCheckout(tier: PaidTier, interval: BillingInterval): 
   return handle(res);
 }
 
+// PayPal: starts a subscription and returns the URL of PayPal's approval page.
+export async function startPayPalCheckout(tier: PaidTier, interval: BillingInterval): Promise<{ url: string }> {
+  const res = await apiFetch(`${BASE}/billing/paypal/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ tier, interval, source: "app" }),
+  });
+  return handle(res);
+}
+
+// Called on return from PayPal (?paypal=1&subscription_id=I-...).
+export async function confirmPayPal(subscriptionId: string): Promise<SubscriptionActivation> {
+  const res = await apiFetch(`${BASE}/billing/paypal/subscription/${encodeURIComponent(subscriptionId)}`);
+  return handle(res);
+}
+
 // Called on return from checkout (?checkout=<session id>): confirms the payment
 // and returns the license key, or that the workspace was upgraded.
 export async function confirmCheckout(sessionId: string): Promise<SubscriptionActivation> {

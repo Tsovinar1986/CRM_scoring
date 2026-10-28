@@ -75,7 +75,7 @@ export const en = {
   "banner.proAnnual": "Pro annual (save 20%)",
   "banner.advancedMonthly": "Advanced — $40/mo",
   "banner.advancedAnnual": "Advanced annual (save 20%)",
-  "banner.secureCheckout": "Secure card checkout",
+  "banner.secureCheckout": "Secure checkout",
   "upload.trialLimited": "Trial scores the first {limited} of {total} rows.",
   "upload.trialLimitedUpgrade": "Trial scores the first {limited} of {total} rows — upgrade for the full file.",
   "upload.startTrialFirst": "Start a free trial above to upload your leads.",
@@ -110,8 +110,8 @@ export const en = {
   "sub.perYear": "${price}/year",
   "sub.monthly": "monthly",
   "sub.annual": "yearly",
-  "sub.billedMonthly": "Billed every month by card. Cancel anytime from Account settings.",
-  "sub.billedYearly": "Billed every year by card. Cancel anytime from Account settings.",
+  "sub.billedMonthly": "Billed every month. Cancel anytime from Account settings.",
+  "sub.billedYearly": "Billed every year. Cancel anytime from Account settings.",
   "sub.opening": "Opening secure checkout…",
   "sub.continue": "Continue to secure checkout",
   "sub.testMode": "Test mode: no real money is charged.",
@@ -257,6 +257,8 @@ export const en = {
   "purchase.noEmail": "Don't see the email in a minute or two? Check spam, or contact support with the email address you paid with.",
   "api.tooMany": "Too many attempts from your network. Please wait a while and try again.",
   "api.requestFailed": "Request failed",
+  "sub.payPal": "Pay with PayPal",
+  "sub.openingPayPal": "Opening PayPal…",
 } as const;
 
 export type MessageKey = keyof typeof en;

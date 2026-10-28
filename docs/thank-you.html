@@ -157,10 +157,14 @@
     var params = new URLSearchParams(window.location.search);
     var message = document.getElementById("message");
     var keyEl = document.getElementById("license-key");
-    var sessionId = params.get("session_id");
+    // Card checkout comes back with ?session_id=...; PayPal with
+    // ?paypal=1&subscription_id=I-... .
+    var paypalId = params.get("paypal") ? params.get("subscription_id") : null;
+    var sessionId = params.get("session_id") || paypalId;
+    var confirmPath = paypalId ? "/billing/paypal/subscription/" : "/billing/session/";
     if (sessionId) {
       message.textContent = crmLang.t("ty.confirming");
-      fetch(API_BASE + "/billing/session/" + encodeURIComponent(sessionId), { headers: { "Accept-Language": crmLang.lang } }).then(function (res) {
+      fetch(API_BASE + confirmPath + encodeURIComponent(sessionId), { headers: { "Accept-Language": crmLang.lang } }).then(function (res) {
         return res.json().catch(function () { return {}; }).then(function (body) {
           if (!res.ok) throw new Error(body.detail || crmLang.t("ty.errConfirm"));
           return body;
