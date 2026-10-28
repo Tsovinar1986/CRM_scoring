@@ -100,14 +100,14 @@ def _is_paypal(subscription_id: str) -> bool:
 
 
 def _call(what: str, fn, *args, **kwargs):
-    """Runs a Stripe call, turning its errors into HTTP ones: 404 stays 404,
+    """Runs a Stripe or PayPal call, turning its errors into HTTP ones: 404 stays 404,
     anything else is a 502 so callers never carry on as if it had worked."""
     try:
         return fn(*args, **kwargs)
     except BillingError as exc:
         if exc.status == 404:
             raise HTTPException(status_code=404, detail=f"{what.capitalize()} not found.")
-        logger.warning("Stripe: couldn't {}: {}", what, exc)
+        logger.warning("Billing: couldn't {}: {}", what, exc)
         raise HTTPException(status_code=502, detail="Couldn't connect to the payment service.")
 
 

@@ -144,9 +144,9 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 # or "sandbox", and the id of the webhook pointing at
 # https://<backend>/api/billing/paypal/webhook (renewals and cancellations).
 PAYPAL_MODE = os.getenv("PAYPAL_MODE", "live").strip().lower()
-PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
-PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
-PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "")
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "").strip()
+PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "").strip()
+PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "").strip()
 # Prices are decimal amounts in BILLING_CURRENCY. The matching Stripe price
 # is created on the first sale of each plan (found again by a lookup key that
 # includes the amount), so changing an amount only affects new subscriptions.
