@@ -47,8 +47,8 @@ struct PageDialog: Identifiable {
 
 /// Owns the one `WKWebView` the app shows and everything a browser would
 /// otherwise do for the page: opening outside links in the system browser,
-/// alert/confirm dialogs, picking files to upload (Mac) and saving the CSV
-/// export, which the web app hands over through the `saveFile` bridge.
+/// alert/confirm dialogs, picking files to upload (Mac) and saving the CSV and
+/// PowerPoint exports, which the web app hands over through the `saveFile` bridge.
 @Observable
 final class WebModel: NSObject {
     @ObservationIgnored let webView: WKWebView
@@ -140,14 +140,14 @@ final class WebModel: NSObject {
         }
     }
 
-    private func saveFile(named name: String, text: String) {
+    private func saveFile(named name: String, data: Data) {
         #if os(macOS)
         let panel = NSSavePanel()
         panel.nameFieldStringValue = name
-        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.allowedContentTypes = [UTType(filenameExtension: (name as NSString).pathExtension) ?? .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            try text.write(to: url, atomically: true, encoding: .utf8)
+            try data.write(to: url, options: .atomic)
         } catch {
             dialog = PageDialog(message: "Couldn't save \(name): \(error.localizedDescription)", isConfirm: false) { _ in }
         }
@@ -155,7 +155,7 @@ final class WebModel: NSObject {
         // Write a temporary copy and offer the share sheet ("Save to Files", Mail, AirDrop…).
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do {
-            try text.write(to: url, atomically: true, encoding: .utf8)
+            try data.write(to: url, options: .atomic)
         } catch {
             dialog = PageDialog(message: "Couldn't save \(name): \(error.localizedDescription)", isConfirm: false) { _ in }
             return
@@ -257,11 +257,19 @@ extension WebModel: WKUIDelegate {
 extension WebModel: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.securityOrigin.host == appURL.host,
-              let body = message.body as? [String: Any],
-              let text = body["text"] as? String else { return }
+              let body = message.body as? [String: Any] else { return }
+        // Text files (the CSV) come as text, binary ones (the PowerPoint deck) as base64.
+        let data: Data
+        if let text = body["text"] as? String {
+            data = Data(text.utf8)
+        } else if let base64 = body["base64"] as? String, let decoded = Data(base64Encoded: base64) {
+            data = decoded
+        } else {
+            return
+        }
         // Keep only the file name, so the page can't pick where it's written.
         let requested = URL(fileURLWithPath: body["filename"] as? String ?? "").lastPathComponent
-        saveFile(named: requested.isEmpty || requested == "/" ? "scored-leads.csv" : requested, text: text)
+        saveFile(named: requested.isEmpty || requested == "/" ? "scored-leads.csv" : requested, data: data)
     }
 }
 

@@ -1,45 +1,14 @@
+import { useState } from "react";
+import { dashboardStats, DIMENSION_LABELS, HOT_CUTOFF, pct, WARM_CUTOFF } from "../dashboardData";
 import { useI18n } from "../i18n";
-import type { MessageKey } from "../locales/en";
-import type { ScoreBreakdown, ScoredLead } from "../types";
+import type { ScoredLead } from "../types";
 import { BarChart, DonutChart, RankedLineChart } from "./charts";
-
-// Matches backend/app/config.py's SCORING_WEIGHTS -- each dimension's raw
-// score_breakdown value is out of this max, not out of 100, so a bar's fill
-// is normalized to percent-of-its-own-max rather than compared on a shared
-// 0-100 scale it was never scored on.
-const DIMENSION_MAX: Record<keyof ScoreBreakdown, number> = {
-  industry_match: 25,
-  company_size_fit: 25,
-  revenue_fit: 15,
-  tech_stack_match: 15,
-  geography_fit: 10,
-  hiring_signal: 10,
-};
-
-const DIMENSION_LABELS: Record<keyof ScoreBreakdown, MessageKey> = {
-  industry_match: "dim.industry_match",
-  company_size_fit: "dim.company_size_fit",
-  revenue_fit: "dim.revenue_fit",
-  tech_stack_match: "dim.tech_stack_match",
-  geography_fit: "dim.geography_fit",
-  hiring_signal: "dim.hiring_signal",
-};
-
-const DIMENSION_ORDER = Object.keys(DIMENSION_MAX) as (keyof ScoreBreakdown)[];
-
-// Matches backend/app/config.py's BUCKET_THRESHOLDS.
-const HOT_CUTOFF = 75;
-const WARM_CUTOFF = 50;
 
 const BUCKET_STYLES = [
   { key: "hot", label: "bucket.hot", color: "var(--color-chart-hot)" },
   { key: "warm", label: "bucket.warm", color: "var(--color-chart-warm)" },
   { key: "cold", label: "bucket.cold", color: "var(--color-chart-cold)" },
 ] as const;
-
-function pct(part: number, whole: number): number {
-  return whole === 0 ? 0 : Math.round((part / whole) * 100);
-}
 
 interface KpiTileProps {
   label: string;
@@ -73,39 +42,56 @@ interface Props {
 // the Hot/Warm/Cold mix (donut), which scoring dimensions are strong or weak
 // (bars), and how fast quality drops off down the ranked list (line).
 export function ScoreDashboard({ leads }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const [exporting, setExporting] = useState(false);
+  const [exportFailed, setExportFailed] = useState(false);
   if (leads.length === 0) return null;
   const BUCKETS = BUCKET_STYLES.map((b) => ({ ...b, label: t(b.label) }));
 
-  const total = leads.length;
+  const { total, hot, warm, cold, avgCombined, avgAccountFit, dimensions, ranked: byScore } = dashboardStats(leads);
   const count = (bucket: string) => leads.filter((l) => l.bucket === bucket).length;
-  const hot = count("hot");
-  const warm = count("warm");
-  const cold = count("cold");
-  const avgCombined = leads.reduce((sum, l) => sum + l.combined_score, 0) / total;
-  const avgAccountFit = leads.reduce((sum, l) => sum + l.account_fit_score, 0) / total;
-
   const slices = BUCKETS.map((b) => ({ ...b, value: count(b.key) }));
-  const bars = DIMENSION_ORDER.map((key) => ({
-    key,
-    label: t(DIMENSION_LABELS[key]),
-    value: leads.reduce((sum, l) => sum + l.score_breakdown[key], 0) / total,
-    max: DIMENSION_MAX[key],
-  }));
+  const bars = dimensions.map((d) => ({ key: d.key, label: t(DIMENSION_LABELS[d.key]), value: d.value, max: d.max }));
   const bucketOf = (b: string) => BUCKETS.find((x) => x.key === b) ?? BUCKETS[2];
-  const ranked = [...leads]
-    .sort((a, b) => b.combined_score - a.combined_score)
-    .map((l) => ({
-      id: l.id,
-      label: l.company_name,
-      value: l.combined_score,
-      bucketLabel: bucketOf(l.bucket).label,
-      bucketColor: bucketOf(l.bucket).color,
-    }));
+  const ranked = byScore.map((l) => ({
+    id: l.id,
+    label: l.company_name,
+    value: l.combined_score,
+    bucketLabel: bucketOf(l.bucket).label,
+    bucketColor: bucketOf(l.bucket).color,
+  }));
+
+  async function downloadDeck() {
+    setExporting(true);
+    setExportFailed(false);
+    try {
+      const { downloadDashboardDeck } = await import("../dashboardExport");
+      await downloadDashboardDeck(leads, t, lang);
+    } catch {
+      setExportFailed(true);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="rounded-xl border border-border bg-panel p-5 shadow-sm">
-      <h2 className="font-display text-lg font-semibold text-heading">{t("dash.title")}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-lg font-semibold text-heading">{t("dash.title")}</h2>
+        <button
+          type="button"
+          className="rounded-full border border-border px-3 py-1 text-xs font-medium text-text transition-all hover:-translate-y-px hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+          disabled={exporting}
+          onClick={downloadDeck}
+        >
+          {exporting ? t("dash.preparing") : t("dash.downloadPptx")}
+        </button>
+      </div>
+      {exportFailed && (
+        <p role="alert" className="mt-2 text-xs text-accent">
+          {t("dash.downloadFailed")}
+        </p>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <KpiTile label={t("dash.totalLeads")} value={String(total)} />

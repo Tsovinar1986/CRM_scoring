@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.util.Base64
 import android.view.Gravity
 import android.view.View
 import android.webkit.CookieManager
@@ -31,6 +32,8 @@ import androidx.core.view.WindowInsetsCompat
 /** The hosted CRM Scoring service; opening it lands on login / sign-up. */
 private val APP_URL: Uri = Uri.parse("https://ai-lead-generation-scoring.onrender.com/")
 
+private const val PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
 /**
  * The marketing website (SITE_URL in frontend/src/api.ts). Logging out sends the
  * page to its home page, and the logo links there; in the app those show the
@@ -44,8 +47,8 @@ private fun isWebsiteHome(url: Uri): Boolean =
 /**
  * Shows the hosted CRM Scoring web app and does what a browser would for it:
  * outside links open in the browser, the lead upload gets the system file
- * picker, and the CSV export (handed over through the `CRMScoringAndroid`
- * bridge) is saved wherever the user picks.
+ * picker, and the CSV and PowerPoint exports (handed over through the
+ * `CRMScoringAndroid` bridge) are saved wherever the user picks.
  */
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
@@ -60,17 +63,21 @@ class MainActivity : ComponentActivity() {
         pendingUpload = null
     }
 
-    private var pendingSave: String? = null
-    private val pickSaveLocation = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        val text = pendingSave
+    private var pendingSave: ByteArray? = null
+    private fun writePendingSave(uri: Uri?) {
+        val bytes = pendingSave
         pendingSave = null
-        if (uri == null || text == null) return@registerForActivityResult
+        if (uri == null || bytes == null) return
         try {
-            contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+            contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
         } catch (e: Exception) {
             Toast.makeText(this, R.string.save_failed, Toast.LENGTH_LONG).show()
         }
     }
+    // The system picker needs the file type up front: one picker per type the
+    // web app saves (the CSV export, the PowerPoint overview).
+    private val pickCsvLocation = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { writePendingSave(it) }
+    private val pickPptxLocation = registerForActivityResult(ActivityResultContracts.CreateDocument(PPTX_MIME)) { writePendingSave(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -229,16 +236,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Called from the web app's CSV export (frontend/src/csvExport.ts). */
+    /** Called from the web app's file saves (frontend/src/fileSave.ts). */
     inner class NativeBridge {
         @JavascriptInterface
         fun saveFile(filename: String, text: String) {
+            save(filename, text.toByteArray(), "text/csv")
+        }
+
+        @JavascriptInterface
+        fun saveBase64File(filename: String, base64: String, mimeType: String) {
+            val bytes = try {
+                Base64.decode(base64, Base64.DEFAULT)
+            } catch (e: IllegalArgumentException) {
+                return
+            }
+            save(filename, bytes, mimeType)
+        }
+
+        private fun save(filename: String, bytes: ByteArray, mimeType: String) {
             runOnUiThread {
                 // Only while the hosted app itself is showing.
                 if (Uri.parse(webView.url ?: "").host != APP_URL.host) return@runOnUiThread
-                pendingSave = text
+                pendingSave = bytes
                 // Keep only the file name; the user picks where it goes.
-                pickSaveLocation.launch(filename.substringAfterLast('/').ifBlank { "scored-leads.csv" })
+                val name = filename.substringAfterLast('/').ifBlank { "scored-leads.csv" }
+                if (mimeType == PPTX_MIME) pickPptxLocation.launch(name) else pickCsvLocation.launch(name)
             }
         }
     }
