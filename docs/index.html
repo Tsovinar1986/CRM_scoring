@@ -248,7 +248,8 @@
   .checkout .paypal-qr[hidden] { display: none; }
   .checkout .paypal-qr { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
   .checkout .paypal-qr img { width: 128px; height: auto; border-radius: 6px; background: #fff; flex-shrink: 0; }
-  .checkout .paypal-qr p { margin: 0; font-size: 0.82rem; color: var(--text-muted); }
+  .checkout .paypal-qr-note { margin: 8px 0 0; font-size: 0.78rem; color: var(--text-muted); }
+  .paypal-qr p { margin: 0; font-size: 0.82rem; color: var(--text-muted); }
   .checkout button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
   footer { padding: 36px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
@@ -420,6 +421,7 @@
             <img id="paypal-qr" src="" data-i18n-alt="paypal.qrAlt" alt="QR code for paying CRM Scoring with PayPal" width="112" loading="lazy" />
             <p><span data-i18n="paypal.qrBefore">Scan with your phone's camera to pay with PayPal, or</span> <a id="paypal-link" href="#" target="_blank" rel="noopener" data-i18n="paypal.qrLink">open the PayPal payment page</a><span data-i18n="paypal.qrAfter">.</span></p>
           </div>
+          <p id="paypal-qr-note" class="paypal-qr-note" hidden data-i18n="paypal.qrNote">Paid by QR code? Your license key is emailed to your PayPal address within one business day.</p>
         </div>
       </div>
     </div>
@@ -520,6 +522,7 @@
         "paypal.introOr": "Or pay with PayPal. Your license key is emailed to your PayPal address within one business day.",
         "paypal.qrAlt": "QR code for paying CRM Scoring with PayPal",
         "paypal.qrBefore": "Scan with your phone's camera to pay with PayPal, or",
+        "paypal.qrNote": "Paid by QR code? Your license key is emailed to your PayPal address within one business day.",
         "paypal.qrLink": "open the PayPal payment page",
         "paypal.qrAfter": ".",
         "price.month": "{price}/month",
@@ -590,6 +593,7 @@
         "paypal.introOr": "Или оплатите через PayPal. Ключ лицензии придёт на ваш адрес PayPal в течение одного рабочего дня.",
         "paypal.qrAlt": "QR-код для оплаты CRM Scoring через PayPal",
         "paypal.qrBefore": "Отсканируйте камерой телефона, чтобы оплатить через PayPal, или",
+        "paypal.qrNote": "Оплатили по QR-коду? Лицензионный ключ придёт на ваш адрес PayPal в течение одного рабочего дня.",
         "paypal.qrLink": "откройте страницу оплаты PayPal",
         "paypal.qrAfter": ".",
         "price.month": "{price}/мес",
@@ -660,6 +664,7 @@
         "paypal.introOr": "Կամ վճարեք PayPal-ով։ Լիցենզիայի բանալին կուղարկվի ձեր PayPal հասցեին մեկ աշխատանքային օրվա ընթացքում։",
         "paypal.qrAlt": "QR կոդ՝ CRM Scoring-ի համար PayPal-ով վճարելու համար",
         "paypal.qrBefore": "Սկանավորեք հեռախոսի տեսախցիկով՝ PayPal-ով վճարելու համար, կամ",
+        "paypal.qrNote": "Վճարե՞լ եք QR կոդով։ Լիցենզիայի բանալին կուղարկվի ձեր PayPal հասցեին մեկ աշխատանքային օրվա ընթացքում։",
         "paypal.qrLink": "բացեք PayPal-ի վճարման էջը",
         "paypal.qrAfter": "։",
         "price.month": "{price}/ամիս",
@@ -852,7 +857,10 @@
       $("paypal-api").disabled = false;
       $("paypal-api").textContent = t("paypal.api");
       $("paypal-button").hidden = on;
-      $("paypal-qr-block").hidden = on;
+      // The QR (PayPal's hosted payment page) stays as a phone-friendly
+      // alternative; its key is sent by hand, so say so next to it.
+      $("paypal-qr-block").hidden = !hosted;
+      $("paypal-qr-note").hidden = !(on && hosted);
       $("paypal-alt").hidden = !(on || hosted);
       $("paypal-intro").textContent = on
         ? t(cardToo ? "paypal.introApiOr" : "paypal.introApi")
