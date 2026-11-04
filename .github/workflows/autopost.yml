@@ -1,0 +1,50 @@
+name: Social posts
+
+# Posts the next marketing post from marketing/posts.json: Facebook Page and
+# Threads every day, LinkedIn Mon/Wed/Fri, Instagram Tue/Thu/Sat.
+# See marketing/README.md.
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC = 10:00 in Yerevan
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only show what would be posted"
+        type: boolean
+        default: true
+      only:
+        description: "Post to one platform only"
+        type: choice
+        options: [all, facebook, instagram, linkedin, threads]
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: social-posts
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Post
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          args=()
+          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
+          [ -n "$ONLY" ] && [ "$ONLY" != "all" ] && args+=(--only "$ONLY")
+          python marketing/autopost.py "${args[@]}"
