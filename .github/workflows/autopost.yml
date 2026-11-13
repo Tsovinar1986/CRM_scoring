@@ -1,7 +1,7 @@
 name: Social posts
 
 # Posts the next marketing post from marketing/posts.json: Facebook Page and
-# Threads every day, LinkedIn Mon/Wed/Fri, Instagram Tue/Thu/Sat.
+# Threads every day, LinkedIn Mon/Wed/Fri, Instagram Tue/Thu/Sat, Reddit Tue/Thu.
 # See marketing/README.md.
 on:
   schedule:
@@ -15,7 +15,7 @@ on:
       only:
         description: "Post to one platform only"
         type: choice
-        options: [all, facebook, instagram, linkedin, threads]
+        options: [all, facebook, instagram, linkedin, reddit, threads]
         default: all
 
 permissions:
@@ -41,6 +41,11 @@ jobs:
           FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
           INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          REDDIT_SUBREDDIT: ${{ secrets.REDDIT_SUBREDDIT }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
           ONLY: ${{ inputs.only }}
         run: |

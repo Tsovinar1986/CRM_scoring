@@ -68,6 +68,17 @@ The API can only post to a **Page**, not a personal profile.
    **Threads App Secret** to get a 60-day token. Save it as `THREADS_ACCESS_TOKEN`.
 4. **Every 60 days**: generate a fresh one and replace the secret.
 
+### Reddit (your profile or your own subreddit) → `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD`, `REDDIT_SUBREDDIT`
+
+Posts on Tuesdays and Thursdays as text posts: the first line is the title, the rest the body.
+
+1. Reddit no longer hands out API keys on its own: request access first through Reddit's developer request form ("I'm a developer" → "I want to register to use the Reddit API"). Describe it as: a script that posts our own product updates to our own Reddit profile twice a week, no data collected.
+2. Once approved, sign in as the posting account, open reddit.com/prefs/apps → **create app** → type **script**, redirect URI `http://localhost:8080`. The short string under the app name is `REDDIT_CLIENT_ID`; the **secret** field is `REDDIT_CLIENT_SECRET`.
+3. Add those two plus `REDDIT_USERNAME` and `REDDIT_PASSWORD` (the account must not use two-factor sign-in) as GitHub Secrets.
+4. Optional `REDDIT_SUBREDDIT`: the name of **your own** subreddit, e.g. `crmscoring`. Leave it unset to post to your profile (u/your-name).
+
+Don't set `REDDIT_SUBREDDIT` to a community like r/salesforce: a repeating promotional post there is spam under Reddit's rules and can get the account and crmscoring.com banned across Reddit. Post in communities by hand, with useful content, and reply to comments yourself.
+
 ## Try it
 
 **Actions → Social posts → Run workflow**. With *Only show what would be posted* ticked
