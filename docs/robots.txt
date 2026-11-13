@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /app.html
+Disallow: /thank-you.html
+Disallow: /login.html
+
+Sitemap: https://www.crmscoring.com/sitemap.xml

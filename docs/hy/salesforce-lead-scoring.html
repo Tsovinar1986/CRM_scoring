@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="hy">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Salesforce լիդերի գնահատում (lead scoring) — CRM Scoring</title>
+<meta name="description" content="Գնահատեք Salesforce-ի, Bitrix24-ի, amoCRM-ի և HubSpot-ի հաճախորդներին Hot / Warm / Cold սանդղակով AI բացատրությամբ։ Աշխատում է Հայաստանի ընկերությունների համար։ Անվճար սկսելու համար։" />
+<link rel="canonical" href="https://www.crmscoring.com/hy/salesforce-lead-scoring.html" />
+<link rel="alternate" hreflang="hy" href="https://www.crmscoring.com/hy/salesforce-lead-scoring.html" />
+<link rel="alternate" hreflang="ru" href="https://www.crmscoring.com/ru/salesforce-lead-scoring.html" />
+<link rel="alternate" hreflang="en" href="https://www.crmscoring.com/en/salesforce-lead-scoring.html" />
+<link rel="alternate" hreflang="x-default" href="https://www.crmscoring.com/en/salesforce-lead-scoring.html" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="CRM Scoring" />
+<meta property="og:locale" content="hy_AM" />
+<meta property="og:url" content="https://www.crmscoring.com/hy/salesforce-lead-scoring.html" />
+<meta property="og:title" content="Salesforce լիդերի գնահատում (lead scoring) — CRM Scoring" />
+<meta property="og:description" content="Գնահատեք Salesforce-ի, Bitrix24-ի, amoCRM-ի և HubSpot-ի հաճախորդներին Hot / Warm / Cold սանդղակով AI բացատրությամբ։ Աշխատում է Հայաստանի ընկերությունների համար։ Անվճար սկսելու համար։" />
+<meta property="og:image" content="https://www.crmscoring.com/assets/og-image.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="../assets/app-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --bg:#f6f1e6; --bg-alt:#fffcf5; --text-h:#211b12; --text:#6b6152; --text-muted:#8a7e6d; --border:#e6dbc3; --accent:#b3401f; --hot:#c53a2c; --warm:#a8710f; --cold:#5b6472; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#18130c; --bg-alt:#211a11; --text-h:#f4ead9; --text:#b6a993; --text-muted:#8d8069; --border:#382d1e; --accent:#e37a4c; --hot:#ea6a53; --warm:#dba43b; --cold:#8b93a3; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"IBM Plex Sans", system-ui, sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  h1, h2 { font-family:"Fraunces", ui-serif, Georgia, serif; color:var(--text-h); line-height:1.25; }
+  h1 { font-size:2rem; margin:8px 0 12px; } h2 { font-size:1.3rem; margin-top:36px; }
+  .wrap { max-width:760px; margin:0 auto; padding:0 24px; }
+  header.nav { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 0; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; gap:8px; text-decoration:none; }
+  .logo-dots { display:flex; gap:3px; } .logo-dots span { width:7px; height:7px; border-radius:999px; display:block; }
+  .logo-dots span:nth-child(1){background:var(--hot)} .logo-dots span:nth-child(2){background:var(--warm)} .logo-dots span:nth-child(3){background:var(--cold)}
+  .logo-word { font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:600; font-size:1.15rem; color:var(--text-h); }
+  .logo-word em { font-style:normal; color:var(--accent); }
+  .langs a { margin-left:12px; color:var(--text-muted); font-size:0.9rem; } .langs a[aria-current] { color:var(--accent); font-weight:600; text-decoration:none; }
+  main { padding:16px 0 56px; }
+  .intro { font-size:1.08rem; color:var(--text-h); }
+  ul { padding-left:20px; } li { margin-bottom:6px; }
+  .cta { display:inline-block; background:var(--accent); color:#fff; padding:12px 22px; border-radius:8px; text-decoration:none; font-weight:600; margin-top:8px; }
+  .cta.secondary { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .note { font-size:0.88rem; color:var(--text-muted); margin-top:8px; }
+  table { border-collapse:collapse; width:100%; max-width:420px; margin:12px 0; background:var(--bg-alt); }
+  th, td { border:1px solid var(--border); padding:8px 12px; text-align:left; } th { color:var(--text-h); }
+  details { border:1px solid var(--border); background:var(--bg-alt); border-radius:8px; padding:12px 16px; margin-bottom:10px; }
+  summary { cursor:pointer; color:var(--text-h); font-weight:600; }
+  footer { border-top:1px solid var(--border); padding:24px 0 40px; font-size:0.9rem; color:var(--text-muted); }
+  a { color:var(--accent); }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Արդյո՞ք ձեր տվյալները դուրս են գալիս ընկերությունից", "acceptedAnswer": {"@type": "Answer", "text": "CRM Scoring-ը կարելի է տեղադրել ձեր սեփական սերվերում, և CRM տվյալները մնում են ձեր ենթակառուցվածքում։"}}, {"@type": "Question", "name": "Որքա՞ն արժե", "acceptedAnswer": {"@type": "Answer", "text": "Starter պլանն անվճար է (10 վերբեռնում, յուրաքանչյուրը 10 տող)։ Pro-ն $20/ամիս է կամ $192/տարի, Advanced-ը՝ $40/ամիս։"}}, {"@type": "Question", "name": "Պե՞տք է արդյոք Salesforce", "acceptedAnswer": {"@type": "Answer", "text": "Ոչ։ Բավական է CSV կամ Excel ֆայլ ցանկացած CRM-ից։ Salesforce-ի հետ կապը պետք է միայն արդյունքները ավտոմատ վերադարձնելու համար։"}}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header class="nav">
+    <a class="logo" href="../index.html?lang=hy" aria-label="CRM Scoring — Գլխավոր"><span class="logo-dots"><span></span><span></span><span></span></span><span class="logo-word">CRM <em>Scoring</em></span></a>
+    <nav class="langs"><a href="../hy/salesforce-lead-scoring.html" hreflang="hy" aria-current="page">Հայերեն</a><a href="../ru/salesforce-lead-scoring.html" hreflang="ru">Русский</a><a href="../en/salesforce-lead-scoring.html" hreflang="en">English</a></nav>
+  </header>
+  <main>
+    <h1>Salesforce լիդերի գնահատում՝ մի քանի րոպեում</h1>
+    <p class="intro">CRM Scoring-ը գնահատում է ձեր CRM-ի յուրաքանչյուր հաճախորդին 0-ից 100 միավորով, բաժանում Hot / Warm / Cold խմբերի և յուրաքանչյուրի համար գրում կարճ բացատրություն։ Վաճառքի թիմը տեսնում է, թե ում զանգել առաջինը։</p>
+    
+    <p><a class="cta" href="https://www.crmscoring.com/?lang=hy#pricing">Փորձել անվճար</a></p>
+    <p class="note">Անվճար պլան՝ առանց քարտի։ Pro՝ $20/ամիս։</p>
+    <h2>Ինչպես է աշխատում</h2>
+<ul><li>Արտահանեք հաշիվները Salesforce-ից (Reports → Export) CSV կամ Excel ֆայլով։</li><li>Վերբեռնեք ֆայլը CRM Scoring-ում։ Անհրաժեշտ է միայն ընկերության անունը և կայքը, մնացած սյունակները (ոլորտ, աշխատակիցների թիվ, եկամուտ, երկիր) բարելավում են գնահատումը։</li><li>Ստացեք յուրաքանչյուր հաշվի միավորը, Hot / Warm / Cold խումբը և AI բացատրությունը։</li><li>Pro պլանում արդյունքները մեկ սեղմումով վերադարձրեք Salesforce, իսկ Slack-ում ստացեք ծանուցում, երբ լիդը դառնում է Hot։</li></ul>
+<h2>Չե՞ք օգտագործում Salesforce</h2>
+<p>Հայաստանում շատ ընկերություններ աշխատում են Bitrix24-ով, amoCRM-ով, HubSpot-ով կամ պարզապես Excel-ով։ CRM Scoring-ն ընդունում է ցանկացած CSV կամ Excel արտահանում, այնպես որ գնահատումը կաշխատի նաև ձեր դեպքում։</p>
+<h2>Ինչու է գնահատումը թափանցիկ</h2>
+<p>Միավորը հաշվարկվում է կանոններով, որոնք կարող եք ստուգել՝ ոլորտ (25), ընկերության չափ (25), եկամուտ (15), տեխնոլոգիաներ (15), աշխարհագրություն (10), աշխատանքի ընդունման ազդանշան (10)։ 75 և ավելի միավորը Hot է, 50–74-ը՝ Warm, 50-ից ցածրը՝ Cold։ AI-ն ավելացնում է այն, ինչ կանոնները չեն տեսնում։</p>
+    <h2>Հաճախ տրվող հարցեր</h2>
+    <details><summary>Արդյո՞ք ձեր տվյալները դուրս են գալիս ընկերությունից</summary><p>CRM Scoring-ը կարելի է տեղադրել ձեր սեփական սերվերում, և CRM տվյալները մնում են ձեր ենթակառուցվածքում։</p></details>
+<details><summary>Որքա՞ն արժե</summary><p>Starter պլանն անվճար է (10 վերբեռնում, յուրաքանչյուրը 10 տող)։ Pro-ն $20/ամիս է կամ $192/տարի, Advanced-ը՝ $40/ամիս։</p></details>
+<details><summary>Պե՞տք է արդյոք Salesforce</summary><p>Ոչ։ Բավական է CSV կամ Excel ֆայլ ցանկացած CRM-ից։ Salesforce-ի հետ կապը պետք է միայն արդյունքները ավտոմատ վերադարձնելու համար։</p></details>
+    <p><a class="cta" href="https://www.crmscoring.com/?lang=hy#pricing">Փորձել անվճար</a></p>
+    <h2>Կարդացեք նաև</h2>
+    <p><a href="ai-lead-scoring.html">AI լիդերի գնահատում, որը բացատրում է իր որոշումը</a> · <a href="lead-scoring-template.html">Լիդերի գնահատման ձևանմուշ՝ անվճար</a></p>
+  </main>
+  <footer>&copy; 2026 CRM Scoring · Հարցեր ունե՞ք՝ գրեք <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a> · <a href="../terms.html">Terms</a> · <a href="../privacy.html">Privacy</a></footer>
+</div>
+</body>
+</html>
