@@ -1,10 +1,10 @@
-"""Posts the next marketing post to LinkedIn, Facebook, Instagram and Threads.
+"""Posts the next marketing post to LinkedIn, Facebook, Instagram, Threads and Reddit.
 
 Run once a day by .github/workflows/autopost.yml. Each platform works
 through posts.json in order, one post per posting day, and starts over
 after the last one: Facebook and Threads post every day, LinkedIn on
 Mondays, Wednesdays and Fridays, Instagram on Tuesdays, Thursdays and
-Saturdays. Which post comes next is worked out from the date, so nothing
+Saturdays, Reddit on Tuesdays and Thursdays. Which post comes next is worked out from the date, so nothing
 needs to be stored between runs.
 
 Uses the platforms' official APIs only, with tokens from the environment
@@ -35,6 +35,7 @@ SCHEDULE = {
     "threads": {0, 1, 2, 3, 4, 5, 6},
     "linkedin": {0, 2, 4},
     "instagram": {1, 3, 5},
+    "reddit": {1, 3},
 }
 SITE = "https://www.crmscoring.com"
 # Instagram and Threads fetch images from a public address rather than taking
@@ -196,6 +197,60 @@ def post_threads(text: str, image_path: str | None, token: str) -> str:
     return body.json().get("id", "posted")
 
 
+# --- Reddit ----------------------------------------------------------------
+
+# Reddit posts go to your own profile (u/<username>) unless REDDIT_SUBREDDIT
+# names your own subreddit. Never point this at a community like r/salesforce:
+# the same promotional post on a schedule there is spam under Reddit's rules
+# and can get the account and crmscoring.com banned site-wide.
+REDDIT_USER_AGENT = "crmscoring-autopost/1.0 (by u/{username})"
+
+
+def reddit_title_and_body(text: str) -> tuple[str, str]:
+    """First line becomes the title (Reddit allows 300 characters), the rest the body."""
+    first, _, rest = text.strip().partition("\n")
+    title = first.strip()
+    if len(title) > 300:
+        title = title[:297].rstrip() + "..."
+    return title, rest.strip()
+
+
+def reddit_target(username: str, subreddit: str | None) -> str:
+    """Where to post: the subreddit's name without r/, or u_<username> for the profile."""
+    name = (subreddit or "").strip().removeprefix("/").removeprefix("r/")
+    return name or f"u_{username}"
+
+
+def post_reddit(text: str, client_id: str, secret: str, username: str, password: str, subreddit: str | None) -> str:
+    agent = {"User-Agent": REDDIT_USER_AGENT.format(username=username)}
+    auth = _check(
+        requests.post(
+            "https://www.reddit.com/api/v1/access_token",
+            auth=(client_id, secret),
+            data={"grant_type": "password", "username": username, "password": password},
+            headers=agent,
+            timeout=30,
+        ),
+        "Reddit sign-in",
+    ).json()
+    if "access_token" not in auth:
+        raise PostError(f"Reddit sign-in: {auth.get('error', auth)}")
+    title, body = reddit_title_and_body(text)
+    resp = _check(
+        requests.post(
+            "https://oauth.reddit.com/api/submit",
+            headers={**agent, "Authorization": f"bearer {auth['access_token']}"},
+            data={"sr": reddit_target(username, subreddit), "kind": "self", "title": title, "text": body, "api_type": "json"},
+            timeout=30,
+        ),
+        "Reddit post",
+    ).json()
+    errors = resp.get("json", {}).get("errors") or []
+    if errors:
+        raise PostError(f"Reddit post: {errors}")
+    return resp.get("json", {}).get("data", {}).get("url", "posted")
+
+
 # --- Run -------------------------------------------------------------------
 
 def main() -> int:
@@ -218,6 +273,8 @@ def main() -> int:
             continue
         text, image = text_for(platform, post), image_for(post)
         image_path = post.get("image") or (INSTAGRAM_DEFAULT_IMAGE if platform == "instagram" else None)
+        if platform == "reddit":
+            image_path = None  # Reddit gets text posts; the link shows a preview of the site
         label = f"{platform}: post {posts.index(post) + 1}/{len(posts)}" + (f" with {Path(image_path).name}" if image_path else "")
         if args.dry_run:
             print(f"{label} (dry run)\n{text}\n")
@@ -241,6 +298,12 @@ def main() -> int:
                     print(f"{platform}: skipped, INSTAGRAM_ACCOUNT_ID / FACEBOOK_PAGE_TOKEN aren't set")
                     continue
                 post_id = post_instagram(text, image_path, account_id, token)
+            elif platform == "reddit":
+                creds = [os.getenv(k) for k in ("REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_USERNAME", "REDDIT_PASSWORD")]
+                if not all(creds):
+                    print(f"{platform}: skipped, REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET / REDDIT_USERNAME / REDDIT_PASSWORD aren't set")
+                    continue
+                post_id = post_reddit(text, *creds, os.getenv("REDDIT_SUBREDDIT"))
             else:
                 token = os.getenv("THREADS_ACCESS_TOKEN")
                 if not token:

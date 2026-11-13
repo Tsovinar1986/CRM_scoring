@@ -40,3 +40,22 @@ def test_instagram_points_to_the_bio_link_and_always_has_a_picture():
     assert "link in bio" in autopost.text_for("instagram", text_only)
     assert "https://" not in autopost.text_for("instagram", text_only)
     assert (autopost.HERE / autopost.INSTAGRAM_DEFAULT_IMAGE).is_file()
+
+
+def test_reddit_posts_tuesday_and_thursday_in_order():
+    posts = load_posts()
+    week = [post_for("reddit", START + dt.timedelta(days=i), posts) for i in range(14)]
+    assert [d is not None for d in week[:7]] == [False, True, False, True, False, False, False]
+    assert [posts.index(p) for p in week if p] == [0, 1, 2, 3]
+
+
+def test_reddit_title_is_the_first_line_and_fits():
+    for post in load_posts():
+        title, body = autopost.reddit_title_and_body(post["text"])
+        assert title and len(title) <= 300
+        assert title not in body
+
+
+def test_reddit_defaults_to_the_profile():
+    assert autopost.reddit_target("crmscoring", None) == "u_crmscoring"
+    assert autopost.reddit_target("crmscoring", "r/crmscoring") == "crmscoring"
