@@ -245,11 +245,6 @@
     background: #ffc439; color: #003087; cursor: pointer;
   }
   .checkout .paypal-api:disabled { opacity: 0.6; cursor: not-allowed; }
-  .checkout .paypal-qr[hidden] { display: none; }
-  .checkout .paypal-qr { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
-  .checkout .paypal-qr img { width: 128px; height: auto; border-radius: 6px; background: #fff; flex-shrink: 0; }
-  .checkout .paypal-qr-note { margin: 8px 0 0; font-size: 0.78rem; color: var(--text-muted); }
-  .paypal-qr p { margin: 0; font-size: 0.82rem; color: var(--text-muted); }
   .checkout button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
   footer { padding: 36px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
@@ -414,14 +409,8 @@
         </div>
         <p id="checkout-form-error" class="error" hidden></p>
         <div class="paypal-alt" id="paypal-alt" hidden>
-          <p class="fine" id="paypal-intro">Pay with PayPal. Your license key is emailed to your PayPal address within one business day.</p>
-          <button type="button" id="paypal-api" class="paypal-api" hidden onclick="payWithPayPal()" data-i18n="paypal.api">Pay with PayPal</button>
-          <div id="paypal-button"></div>
-          <div class="paypal-qr" id="paypal-qr-block">
-            <img id="paypal-qr" src="" data-i18n-alt="paypal.qrAlt" alt="QR code for paying CRM Scoring with PayPal" width="112" loading="lazy" />
-            <p><span data-i18n="paypal.qrBefore">Scan with your phone's camera to pay with PayPal, or</span> <a id="paypal-link" href="#" target="_blank" rel="noopener" data-i18n="paypal.qrLink">open the PayPal payment page</a><span data-i18n="paypal.qrAfter">.</span></p>
-          </div>
-          <p id="paypal-qr-note" class="paypal-qr-note" hidden data-i18n="paypal.qrNote">Paid by QR code? Your license key is emailed to your PayPal address within one business day.</p>
+          <p class="fine" id="paypal-intro">Pay with PayPal. It renews automatically and you can cancel any time; your license key is shown right after.</p>
+          <button type="button" id="paypal-api" class="paypal-api" onclick="payWithPayPal()" data-i18n="paypal.api">Pay with PayPal</button>
         </div>
       </div>
     </div>
@@ -518,13 +507,6 @@
         "checkout.continue": "Continue to secure checkout",
         "checkout.opening": "Opening secure checkout…",
         "checkout.unavailable": "Online payment for this plan isn't available yet. Email hello@crmscoring.com and we'll set you up.",
-        "paypal.intro": "Pay with PayPal. Your license key is emailed to your PayPal address within one business day.",
-        "paypal.introOr": "Or pay with PayPal. Your license key is emailed to your PayPal address within one business day.",
-        "paypal.qrAlt": "QR code for paying CRM Scoring with PayPal",
-        "paypal.qrBefore": "Scan with your phone's camera to pay with PayPal, or",
-        "paypal.qrNote": "Paid by QR code? Your license key is emailed to your PayPal address within one business day.",
-        "paypal.qrLink": "open the PayPal payment page",
-        "paypal.qrAfter": ".",
         "price.month": "{price}/month",
         "price.year": "{price}/year",
         "err.noResponse": "The payment server didn't respond. Please try again in a minute, or email hello@crmscoring.com.",
@@ -589,13 +571,6 @@
         "checkout.continue": "Перейти к безопасной оплате",
         "checkout.opening": "Открываем безопасную оплату…",
         "checkout.unavailable": "Онлайн-оплата этого плана пока недоступна. Напишите на hello@crmscoring.com, и мы всё настроим.",
-        "paypal.intro": "Оплатите через PayPal. Ключ лицензии придёт на ваш адрес PayPal в течение одного рабочего дня.",
-        "paypal.introOr": "Или оплатите через PayPal. Ключ лицензии придёт на ваш адрес PayPal в течение одного рабочего дня.",
-        "paypal.qrAlt": "QR-код для оплаты CRM Scoring через PayPal",
-        "paypal.qrBefore": "Отсканируйте камерой телефона, чтобы оплатить через PayPal, или",
-        "paypal.qrNote": "Оплатили по QR-коду? Лицензионный ключ придёт на ваш адрес PayPal в течение одного рабочего дня.",
-        "paypal.qrLink": "откройте страницу оплаты PayPal",
-        "paypal.qrAfter": ".",
         "price.month": "{price}/мес",
         "price.year": "{price}/год",
         "err.noResponse": "Платёжный сервер не ответил. Попробуйте через минуту или напишите на hello@crmscoring.com.",
@@ -660,13 +635,6 @@
         "checkout.continue": "Անցնել անվտանգ վճարմանը",
         "checkout.opening": "Բացվում է անվտանգ վճարման էջը…",
         "checkout.unavailable": "Այս պլանի առցանց վճարումը դեռ հասանելի չէ։ Գրեք hello@crmscoring.com հասցեին, և մենք ամեն ինչ կկարգավորենք։",
-        "paypal.intro": "Վճարեք PayPal-ով։ Լիցենզիայի բանալին կուղարկվի ձեր PayPal հասցեին մեկ աշխատանքային օրվա ընթացքում։",
-        "paypal.introOr": "Կամ վճարեք PayPal-ով։ Լիցենզիայի բանալին կուղարկվի ձեր PayPal հասցեին մեկ աշխատանքային օրվա ընթացքում։",
-        "paypal.qrAlt": "QR կոդ՝ CRM Scoring-ի համար PayPal-ով վճարելու համար",
-        "paypal.qrBefore": "Սկանավորեք հեռախոսի տեսախցիկով՝ PayPal-ով վճարելու համար, կամ",
-        "paypal.qrNote": "Վճարե՞լ եք QR կոդով։ Լիցենզիայի բանալին կուղարկվի ձեր PayPal հասցեին մեկ աշխատանքային օրվա ընթացքում։",
-        "paypal.qrLink": "բացեք PayPal-ի վճարման էջը",
-        "paypal.qrAfter": "։",
         "price.month": "{price}/ամիս",
         "price.year": "{price}/տարի",
         "err.noResponse": "Վճարային սերվերը չպատասխանեց։ Խնդրում ենք փորձել մեկ րոպեից կամ գրել hello@crmscoring.com հասցեին։",
@@ -784,44 +752,6 @@
       });
     }
     function closeCheckout() { $("checkout").hidden = true; checkoutPlan = null; }
-    // PayPal hosted buttons, one per plan, set up in the PayPal account
-    // (Pay links & buttons) at the same prices. PayPal doesn't tell our server
-    // about these payments, so their license keys are sent by hand. A plan
-    // without a button here just doesn't offer PayPal. The SDK only loads once
-    // someone opens checkout.
-    var PAYPAL_BUTTONS = {
-      pro: { monthly: "HF5Y9D9UMUBRG", annual: "WJLKZDUZ5JSBQ" },
-      advanced: { monthly: "FDFQ63HNL8SPY", annual: "RLCCRUDA92HU6" }
-    };
-    var PAYPAL_SDK = "https://www.paypal.com/sdk/js?client-id=BAAR3jXeS1rBJ-3AMLDPuo5Vjsr1U6EAEAlmyEHbWUzIKFMRlLXqVUAX_YcpG7tiuGwa8JlKEqlbtixuIA&components=hosted-buttons&disable-funding=venmo&currency=USD";
-    var paypalSdk = null;
-    function loadPayPal() {
-      if (!paypalSdk) {
-        paypalSdk = new Promise(function (resolve, reject) {
-          var script = document.createElement("script");
-          script.src = PAYPAL_SDK;
-          script.onload = function () { window.paypal ? resolve(window.paypal) : reject(new Error("PayPal didn't load.")); };
-          script.onerror = function () { paypalSdk = null; reject(new Error("PayPal didn't load.")); };
-          document.head.appendChild(script);
-        });
-      }
-      return paypalSdk;
-    }
-    function showPayPal(tier, interval) {
-      var id = (PAYPAL_BUTTONS[tier] || {})[interval];
-      $("paypal-alt").hidden = !id;
-      $("paypal-button").innerHTML = "";
-      if (!id) return;
-      $("paypal-qr").src = "assets/paypal-qr-" + id + ".png";
-      $("paypal-link").href = "https://www.paypal.com/ncp/payment/" + id;
-      var container = document.createElement("div");
-      container.id = "paypal-container-" + id;
-      $("paypal-button").appendChild(container);
-      loadPayPal().then(function (paypal) {
-        // Only if the buyer hasn't switched plans while PayPal was loading.
-        if (document.getElementById(container.id)) paypal.HostedButtons({ hostedButtonId: id }).render("#" + container.id);
-      }, function () {});
-    }
     function buyPlan(tier) {
       clearError();
       closeTrial();
@@ -833,38 +763,24 @@
       $("checkout-pay").textContent = t("checkout.continue");
       formError("");
       $("checkout").scrollIntoView({ behavior: "smooth", block: "center" });
-      showPayPal(tier, currentInterval);
-      // Offer card checkout only once the server says it's switched on;
-      // until then PayPal is the way to pay.
+      // Every plan, monthly and yearly, is a PayPal subscription: it renews
+      // automatically, can be cancelled any time, and the license key is
+      // shown right after payment. Card checkout appears next to it once the
+      // server says it's switched on.
       var plan = checkoutPlan;
-      var hasPayPal = !!(PAYPAL_BUTTONS[tier] && PAYPAL_BUTTONS[tier][plan.interval]);
       $("card-checkout").hidden = true;
-      $("paypal-intro").textContent = t("paypal.intro");
-      if (!hasPayPal) formError(t("checkout.unavailable"));
-      usePayPalSubscriptions(false, false);
-      api("/billing/config").then(function (config) {
-        if (checkoutPlan !== plan) return;
-        // With PayPal keys on the server, PayPal runs as a real subscription
-        // with the key shown right after; otherwise the hosted buttons/QR.
-        usePayPalSubscriptions(!!config.paypal_available, !!config.checkout_available);
-        if (config.paypal_available || config.checkout_available) formError("");
-        if (config.checkout_available) $("card-checkout").hidden = false;
-      }, function () {});
-    }
-    function usePayPalSubscriptions(on, cardToo) {
-      var hosted = !!(checkoutPlan && PAYPAL_BUTTONS[checkoutPlan.tier] && PAYPAL_BUTTONS[checkoutPlan.tier][checkoutPlan.interval]);
-      $("paypal-api").hidden = !on;
+      $("paypal-alt").hidden = false;
       $("paypal-api").disabled = false;
       $("paypal-api").textContent = t("paypal.api");
-      $("paypal-button").hidden = on;
-      // The QR (PayPal's hosted payment page) stays as a phone-friendly
-      // alternative; its key is sent by hand, so say so next to it.
-      $("paypal-qr-block").hidden = !hosted;
-      $("paypal-qr-note").hidden = !(on && hosted);
-      $("paypal-alt").hidden = !(on || hosted);
-      $("paypal-intro").textContent = on
-        ? t(cardToo ? "paypal.introApiOr" : "paypal.introApi")
-        : t(cardToo ? "paypal.introOr" : "paypal.intro");
+      $("paypal-intro").textContent = t("paypal.introApi");
+      api("/billing/config").then(function (config) {
+        if (checkoutPlan !== plan) return;
+        var cardToo = !!config.checkout_available;
+        $("card-checkout").hidden = !cardToo;
+        $("paypal-alt").hidden = !config.paypal_available;
+        $("paypal-intro").textContent = t(cardToo ? "paypal.introApiOr" : "paypal.introApi");
+        if (!config.paypal_available && !cardToo) formError(t("checkout.unavailable"));
+      }, function () {});
     }
     function payWithPayPal() {
       if (!checkoutPlan) return;
