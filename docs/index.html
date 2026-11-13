@@ -423,6 +423,9 @@
       &nbsp;·&nbsp; <a href="privacy.html" data-i18n="footer.privacy">Privacy</a>
       &nbsp;·&nbsp; <a href="refunds.html" data-i18n="footer.refunds">Refunds</a>
       &nbsp;·&nbsp; <a href="guardrails.html" data-i18n="footer.guardrails">AI Guardrails</a>
+      <br /><a class="seo-link" data-slug="salesforce-lead-scoring" href="hy/salesforce-lead-scoring.html">Salesforce lead scoring</a>
+      &nbsp;·&nbsp; <a class="seo-link" data-slug="ai-lead-scoring" href="hy/ai-lead-scoring.html">AI lead scoring</a>
+      &nbsp;·&nbsp; <a class="seo-link" data-slug="lead-scoring-template" href="hy/lead-scoring-template.html">Lead scoring template</a>
     </div>
   </footer>
 
@@ -670,6 +673,8 @@
       document.querySelectorAll("[data-i18n-aria]").forEach(function (el) { el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria"))); });
       document.querySelectorAll("[data-i18n-content]").forEach(function (el) { el.content = t(el.getAttribute("data-i18n-content")); });
       document.querySelectorAll(".lang-switch button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === lang)); });
+      // Guides in docs/<lang>/ (built by scripts/build_seo_pages.py) open in the visitor's language.
+      document.querySelectorAll(".seo-link").forEach(function (a) { a.href = lang + "/" + a.getAttribute("data-slug") + ".html"; });
       $("nav-dashboard").href = withLang("https://ai-lead-generation-scoring.onrender.com/");
       $("nav-account").href = withLang("https://ai-lead-generation-scoring.onrender.com/") + "#account";
     }
